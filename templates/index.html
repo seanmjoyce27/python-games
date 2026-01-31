@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Game Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Python Game Builder</h1>
+            <p>Learn Python by creating awesome games!</p>
+        </header>
+
+        <section class="user-section">
+            <h2>Who's Playing?</h2>
+            <div class="user-selector">
+                {% if users %}
+                    <div class="user-list">
+                        {% for user in users %}
+                        <button class="user-btn" data-user-id="{{ user.id }}">
+                            {{ user.username }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <button id="newUserBtn" class="btn-primary">+ New Player</button>
+            </div>
+        </section>
+
+        <section class="games-section" id="gamesSection" style="display: none;">
+            <h2>Choose Your Game</h2>
+            <div class="games-grid">
+                {% for game in games %}
+                <div class="game-card">
+                    <h3>{{ game.display_name }}</h3>
+                    <p>{{ game.description }}</p>
+                    <button class="btn-play" data-game-id="{{ game.id }}">
+                        Start Coding
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <div id="newUserModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Create New Player</h2>
+            <input type="text" id="newUsername" placeholder="Enter your name" />
+            <div class="modal-actions">
+                <button id="createUserBtn" class="btn-primary">Create</button>
+                <button id="cancelUserBtn" class="btn-secondary">Cancel</button>
+            </div>
+            <div id="userError" class="error-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedUserId = null;
+
+        // User selection
+        document.querySelectorAll('.user-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                selectedUserId = this.dataset.userId;
+                document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('gamesSection').style.display = 'block';
+            });
+        });
+
+        // New user modal
+        document.getElementById('newUserBtn').addEventListener('click', () => {
+            document.getElementById('newUserModal').style.display = 'flex';
+            document.getElementById('newUsername').value = '';
+            document.getElementById('userError').textContent = '';
+        });
+
+        document.getElementById('cancelUserBtn').addEventListener('click', () => {
+            document.getElementById('newUserModal').style.display = 'none';
+        });
+
+        document.getElementById('createUserBtn').addEventListener('click', async () => {
+            const username = document.getElementById('newUsername').value.trim();
+            if (!username) {
+                document.getElementById('userError').textContent = 'Please enter a name';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    document.getElementById('userError').textContent = data.error;
+                }
+            } catch (error) {
+                document.getElementById('userError').textContent = 'Error creating user';
+            }
+        });
+
+        // Game selection
+        document.querySelectorAll('.btn-play').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!selectedUserId) {
+                    alert('Please select a player first!');
+                    return;
+                }
+                const gameId = this.dataset.gameId;
+                window.location.href = `/game/${gameId}?user_id=${selectedUserId}`;
+            });
+        });
+    </script>
+</body>
+</html>
