@@ -18,4 +18,4 @@ fi
 
 # Start the application
 echo "🚀 Starting Flask server..."
-python app.py
+./venv/bin/python -u app.py

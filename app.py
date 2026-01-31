@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from dotenv import load_dotenv
 from datetime import datetime, timezone
 import difflib
 import os
@@ -1461,10 +1462,11 @@ drop_speed = 30  # Frames between automatic drops
 fast_drop = False
 move_delay = 0
 last_key = None
+lock_timer = 30
 
 def update():
     """Update game logic"""
-    global current_piece, next_piece, game_over, game_started, drop_counter, fast_drop, move_delay, last_key
+    global current_piece, next_piece, game_over, game_started, drop_counter, fast_drop, move_delay, last_key, lock_timer
 
     # Check for SPACE to start game
     from js import is_key_pressed
@@ -1484,6 +1486,10 @@ def update():
             current_piece.move_left()
             if board.check_collision(current_piece):
                 current_piece.move_right()
+            else:
+                # Reset lock timer if we moved successfully
+                if lock_timer < 30:
+                    lock_timer = 30
             move_delay = 5
             last_key = 'ArrowLeft'
     # Right movement
@@ -1492,6 +1498,10 @@ def update():
             current_piece.move_right()
             if board.check_collision(current_piece):
                 current_piece.move_left()
+            else:
+                # Reset lock timer if we moved successfully
+                if lock_timer < 30:
+                    lock_timer = 30
             move_delay = 5
             last_key = 'ArrowRight'
     # Rotation
@@ -1502,6 +1512,10 @@ def update():
                 # Rotate back if collision
                 for _ in range(3):
                     current_piece.rotate()
+            else:
+                # Reset lock timer if we rotated successfully
+                if lock_timer < 30:
+                    lock_timer = 30
             move_delay = 10
             last_key = 'ArrowUp'
     # Fast drop
@@ -1515,21 +1529,14 @@ def update():
     if move_delay > 0:
         move_delay -= 1
 
-    # Auto drop
-    drop_counter += 1
-    current_drop_speed = 3 if fast_drop else drop_speed
+    # Check if piece is on ground (predictive check)
+    current_piece.move_down()
+    on_ground = board.check_collision(current_piece)
+    current_piece.move_up()
 
-    if drop_counter >= current_drop_speed:
-        drop_counter = 0
-
-        # Check if piece can move down before actually moving
-        current_piece.move_down()
-        can_move = not board.check_collision(current_piece)
-
-        if not can_move:
-            # Collision detected - undo the move
-            current_piece.move_up()
-
+    if on_ground:
+        lock_timer -= 1
+        if lock_timer <= 0:
             # Lock the piece at current position
             board.lock_piece(current_piece)
             board.clear_full_lines()
@@ -1537,10 +1544,23 @@ def update():
             # Create new piece
             current_piece = next_piece
             next_piece = create_new_piece()
+            lock_timer = 30  # Reset for next piece
 
             # Check game over
             if board.check_collision(current_piece):
                 game_over = True
+            return
+    else:
+        lock_timer = 30
+
+    # Auto drop
+    if not on_ground:
+        drop_counter += 1
+        current_drop_speed = 3 if fast_drop else drop_speed
+
+        if drop_counter >= current_drop_speed:
+            drop_counter = 0
+            current_piece.move_down()
 
 def draw():
     """Draw everything"""

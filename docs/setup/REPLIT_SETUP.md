@@ -27,9 +27,13 @@ The app is pre-configured for Replit with:
 - Automatic port binding to `0.0.0.0:8443`
 - Instance folder for SQLite database persistence
 
-### Environment Variables (Optional)
+### Environment Variables (Secrets)
 
-You can set these in Replit's "Secrets" tab (Tools → Secrets):
+> [!IMPORTANT]
+> Do **NOT** upload your `.env` file to Replit. It is not secure.
+> Instead, use the **Secrets** tool (padlock icon in the sidebar).
+
+You can set these in Replit's "Secrets" tab:
 
 - `SECRET_KEY` - Flask secret key (auto-generated if not set)
 - `FLASK_ENV` - Set to `production` for deployment

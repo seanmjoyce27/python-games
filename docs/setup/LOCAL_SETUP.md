@@ -286,6 +286,10 @@ created_at     DATETIME
 
 ### Required Configuration
 
+> [!WARNING]
+> The `.env` file is for **local development ONLY**.
+> When deploying to Replit, do **NOT** upload this file. Instead, use the **Secrets** tool in Replit's sidebar.
+
 ```bash
 # Generate secret key
 python3 -c "import secrets; print(secrets.token_hex(32))"
