@@ -6,9 +6,26 @@ __pycache__/
 venv/
 env/
 ENV/
-instance/
-*.db
-*.sqlite3
+
+# Database (keep structure, ignore data in production)
+instance/*.db
+instance/*.sqlite3
+
+# Environment
 .env
+.env.local
+
+# OS
 .DS_Store
+.vscode/
+.idea/
+
+# Replit
+.replit.prev
+.upm/
+.pythonlibs/
+replit_zip_error_log.txt
+poetry.lock
+
+# Node
 node_modules/

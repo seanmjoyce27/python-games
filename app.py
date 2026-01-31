@@ -6,7 +6,17 @@ import difflib
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///python_games.db'
+
+# Replit-optimized configuration
+# Use absolute path for SQLite database
+basedir = os.path.abspath(os.path.dirname(__file__))
+instance_path = os.path.join(basedir, 'instance')
+os.makedirs(instance_path, exist_ok=True)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    f'sqlite:///{os.path.join(instance_path, "python_games.db")}'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
@@ -153,16 +163,6 @@ def save_code():
         is_checkpoint=is_checkpoint
     )
     db.session.add(version)
-
-    # Keep only the last 25 versions per user per game
-    old_versions = CodeVersion.query.filter_by(
-        user_id=user_id,
-        game_id=game_id
-    ).order_by(CodeVersion.created_at.desc()).offset(25).all()
-
-    for old in old_versions:
-        db.session.delete(old)
-
     db.session.commit()
 
     return jsonify({
@@ -173,26 +173,41 @@ def save_code():
 
 @app.route('/api/code/history', methods=['POST'])
 def get_history():
-    """Get version history for a user and game"""
+    """Get version history for a user and game (unlimited saves)"""
     data = request.json
     user_id = data.get('user_id')
     game_id = data.get('game_id')
+    limit = data.get('limit', 100)  # Default to showing last 100
+    offset = data.get('offset', 0)
 
     if not user_id or not game_id:
         return jsonify({'error': 'user_id and game_id required'}), 400
 
+    # Get total count for pagination
+    total_count = CodeVersion.query.filter_by(
+        user_id=user_id,
+        game_id=game_id
+    ).count()
+
+    # Get paginated versions
     versions = CodeVersion.query.filter_by(
         user_id=user_id,
         game_id=game_id
-    ).order_by(CodeVersion.created_at.desc()).limit(25).all()
+    ).order_by(CodeVersion.created_at.desc()).limit(limit).offset(offset).all()
 
-    return jsonify([{
-        'id': v.id,
-        'message': v.message,
-        'is_checkpoint': v.is_checkpoint,
-        'created_at': v.created_at.isoformat(),
-        'preview': v.code[:100] + '...' if len(v.code) > 100 else v.code
-    } for v in versions])
+    return jsonify({
+        'versions': [{
+            'id': v.id,
+            'message': v.message,
+            'is_checkpoint': v.is_checkpoint,
+            'created_at': v.created_at.isoformat(),
+            'preview': v.code[:100] + '...' if len(v.code) > 100 else v.code
+        } for v in versions],
+        'total': total_count,
+        'limit': limit,
+        'offset': offset,
+        'has_more': (offset + limit) < total_count
+    })
 
 @app.route('/api/code/version/<int:version_id>', methods=['GET'])
 def get_version(version_id):
@@ -271,7 +286,7 @@ def init_db():
         if Game.query.count() > 0:
             return
 
-        # Add Snake game
+        # 1. Snake Game
         snake_template = '''# Snake Game
 # Use arrow keys to move the snake
 # Eat the red food to grow!
@@ -319,10 +334,362 @@ snake = Snake()
             template_code=snake_template
         )
         db.session.add(snake)
+
+        # 2. Pong Game (2-player)
+        pong_template = '''# Pong Game - Two Player!
+# Player 1: W/S keys | Player 2: Up/Down arrows
+# First to 5 points wins!
+
+class Paddle:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 10
+        self.height = 60
+        self.speed = 8  # Try changing paddle speed!
+        self.score = 0
+
+    def move_up(self):
+        """Move paddle up"""
+        self.y -= self.speed
+        # Keep on screen
+        if self.y < 0:
+            self.y = 0
+
+    def move_down(self):
+        """Move paddle down"""
+        self.y += self.speed
+        # Keep on screen (assuming 400 height)
+        if self.y > 340:
+            self.y = 340
+
+class Ball:
+    def __init__(self):
+        self.x = 300  # Center of 600px canvas
+        self.y = 200  # Center of 400px canvas
+        self.size = 10
+        self.speed_x = 5  # Try changing ball speed!
+        self.speed_y = 5
+
+    def move(self):
+        """Move the ball"""
+        self.x += self.speed_x
+        self.y += self.speed_y
+
+    def bounce_y(self):
+        """Bounce ball vertically (hit top/bottom)"""
+        self.speed_y = -self.speed_y
+
+    def bounce_x(self):
+        """Bounce ball horizontally (hit paddle)"""
+        self.speed_x = -self.speed_x
+        # Speed up slightly each hit!
+        self.speed_x *= 1.05
+        self.speed_y *= 1.05
+
+    def reset(self):
+        """Reset ball to center"""
+        self.x = 300
+        self.y = 200
+        self.speed_x = 5 if self.speed_x > 0 else -5
+        self.speed_y = 5
+
+# Create players and ball
+player1 = Paddle(20, 170)   # Left paddle
+player2 = Paddle(570, 170)  # Right paddle
+ball = Ball()
+
+# TODO: Make paddles bigger or smaller
+# TODO: Make the ball faster
+# TODO: Change winning score to 10
+# TODO: Add a power-up that speeds up your paddle!
+'''
+
+        pong = Game(
+            name='pong',
+            display_name='Pong (2-Player)',
+            description='Classic 2-player Pong! First to 5 points wins.',
+            template_code=pong_template
+        )
+        db.session.add(pong)
+
+        # 3. Space Invaders
+        space_invaders_template = '''# Space Invaders
+# Arrow keys to move, SPACE to shoot!
+# Destroy all aliens before they reach the bottom!
+
+class Player:
+    def __init__(self):
+        self.x = 300  # Center of screen
+        self.y = 550  # Near bottom
+        self.width = 40
+        self.height = 30
+        self.speed = 7  # Try changing this!
+        self.lives = 3
+
+    def move_left(self):
+        self.x -= self.speed
+        if self.x < 0:
+            self.x = 0
+
+    def move_right(self):
+        self.x += self.speed
+        if self.x > 560:  # Keep on 600px screen
+            self.x = 560
+
+class Bullet:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 4
+        self.height = 10
+        self.speed = 10  # Try making bullets faster!
+        self.active = True
+
+    def move(self):
+        self.y -= self.speed
+        # Remove if off screen
+        if self.y < 0:
+            self.active = False
+
+class Alien:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.width = 30
+        self.height = 30
+        self.speed = 2  # Alien movement speed
+        self.alive = True
+        self.points = 10  # Try different point values!
+
+    def move_down(self):
+        """Aliens move down when hitting edge"""
+        self.y += 20
+
+# Create player
+player = Player()
+
+# Create grid of aliens (5 rows x 8 columns)
+aliens = []
+for row in range(5):
+    for col in range(8):
+        x = 50 + col * 60  # Space them out
+        y = 50 + row * 50
+        aliens.append(Alien(x, y))
+
+# List to hold bullets
+bullets = []
+
+# Game state
+score = 0
+game_over = False
+
+# TODO: Add more alien rows
+# TODO: Make aliens move faster
+# TODO: Add different alien types worth more points
+# TODO: Give player more lives
+# TODO: Add a special weapon that shoots 3 bullets!
+'''
+
+        space_invaders = Game(
+            name='space_invaders',
+            display_name='Space Invaders',
+            description='Shoot the aliens before they reach Earth!',
+            template_code=space_invaders_template
+        )
+        db.session.add(space_invaders)
+
+        # 4. Maze Game
+        maze_template = '''# Maze Game
+# Arrow keys to move
+# Find the exit without hitting walls!
+
+class Player:
+    def __init__(self):
+        self.x = 1  # Grid position
+        self.y = 1
+        self.size = 30  # Size in pixels
+        self.moves = 0  # Count moves to exit
+
+    def move(self, dx, dy, maze):
+        """Try to move in direction, check for walls"""
+        new_x = self.x + dx
+        new_y = self.y + dy
+
+        # Check if move is valid (not a wall)
+        if maze[new_y][new_x] != 1:
+            self.x = new_x
+            self.y = new_y
+            self.moves += 1
+            return True
+        return False
+
+class Maze:
+    def __init__(self):
+        # 0 = path, 1 = wall, 2 = exit
+        # Try creating your own maze!
+        self.grid = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 2, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ]
+        self.cell_size = 40  # Size of each cell
+
+    def check_win(self, player):
+        """Check if player reached the exit"""
+        return self.grid[player.y][player.x] == 2
+
+# Create game objects
+player = Player()
+maze = Maze()
+
+# Game state
+won = False
+best_moves = None  # Track fastest solution
+
+# TODO: Create a bigger maze (15x15)
+# TODO: Add treasures to collect (value 3)
+# TODO: Add moving enemies to avoid
+# TODO: Make multiple levels
+# TODO: Add a timer - can you solve it in 30 seconds?
+'''
+
+        maze = Game(
+            name='maze',
+            display_name='Maze Adventure',
+            description='Navigate the maze and find the exit!',
+            template_code=maze_template
+        )
+        db.session.add(maze)
+
+        # 5. Tetris
+        tetris_template = '''# Tetris
+# Arrow keys: Left/Right to move, Up to rotate, Down to drop faster
+# Clear lines to score points!
+
+class Piece:
+    def __init__(self, shape):
+        self.shape = shape  # 2D array of blocks
+        self.x = 3  # Start in middle-ish
+        self.y = 0
+        self.rotation = 0
+
+    def rotate(self):
+        """Rotate piece clockwise"""
+        # This rotates a 2D array 90 degrees
+        self.shape = [[self.shape[y][x]
+                      for y in range(len(self.shape)-1, -1, -1)]
+                      for x in range(len(self.shape[0]))]
+
+    def move_left(self):
+        self.x -= 1
+
+    def move_right(self):
+        self.x += 1
+
+    def move_down(self):
+        self.y += 1
+
+class Board:
+    def __init__(self):
+        self.width = 10
+        self.height = 20
+        # 0 = empty, 1 = filled
+        self.grid = [[0 for _ in range(self.width)]
+                     for _ in range(self.height)]
+        self.score = 0
+
+    def check_collision(self, piece):
+        """Check if piece collides with board or other pieces"""
+        for y, row in enumerate(piece.shape):
+            for x, cell in enumerate(row):
+                if cell:  # If this part of piece exists
+                    new_x = piece.x + x
+                    new_y = piece.y + y
+
+                    # Check boundaries
+                    if new_x < 0 or new_x >= self.width:
+                        return True
+                    if new_y >= self.height:
+                        return True
+                    if new_y >= 0 and self.grid[new_y][new_x]:
+                        return True
+        return False
+
+    def lock_piece(self, piece):
+        """Lock piece into board"""
+        for y, row in enumerate(piece.shape):
+            for x, cell in enumerate(row):
+                if cell:
+                    self.grid[piece.y + y][piece.x + x] = 1
+
+    def clear_lines(self):
+        """Remove completed lines and award points"""
+        lines_cleared = 0
+        y = self.height - 1
+
+        while y >= 0:
+            if all(self.grid[y]):  # Line is full
+                del self.grid[y]
+                self.grid.insert(0, [0] * self.width)
+                lines_cleared += 1
+            else:
+                y -= 1
+
+        # Score: 100, 300, 500, 800 for 1,2,3,4 lines
+        scores = [0, 100, 300, 500, 800]
+        self.score += scores[min(lines_cleared, 4)]
+
+        return lines_cleared
+
+# Tetris piece shapes (the famous tetrominoes!)
+SHAPES = [
+    [[1, 1, 1, 1]],  # I piece
+    [[1, 1], [1, 1]],  # O piece (square)
+    [[0, 1, 0], [1, 1, 1]],  # T piece
+    [[1, 1, 0], [0, 1, 1]],  # S piece
+    [[0, 1, 1], [1, 1, 0]],  # Z piece
+    [[1, 1, 1], [1, 0, 0]],  # L piece
+    [[1, 1, 1], [0, 0, 1]],  # J piece
+]
+
+# Create board
+board = Board()
+
+# Game state
+game_over = False
+drop_speed = 500  # milliseconds between automatic drops
+
+# TODO: Add a "next piece" preview
+# TODO: Make game faster as score increases
+# TODO: Add different colors for each piece type
+# TODO: Track high score
+# TODO: Add a "hold piece" feature
+# TODO: Show ghost piece (where it will land)
+'''
+
+        tetris = Game(
+            name='tetris',
+            display_name='Tetris',
+            description='Stack blocks and clear lines! Classic puzzle game.',
+            template_code=tetris_template
+        )
+        db.session.add(tetris)
+
+        # Commit all games
         db.session.commit()
 
-        print("Database initialized with Snake game!")
+        print("Database initialized with 5 games: Snake, Pong, Space Invaders, Maze, Tetris!")
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5000)
+    # Replit optimized: bind to 0.0.0.0 for external access
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') != 'production')

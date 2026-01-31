@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ game.display_name }} - Code Editor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <a href="/" class="back-btn">← Back</a>
+            <h1>{{ game.display_name }}</h1>
+            <div class="header-actions">
+                <span id="saveStatus"></span>
+                <button id="historyBtn" class="btn-secondary">📜 History</button>
+                <button id="saveBtn" class="btn-primary">💾 Save Checkpoint</button>
+            </div>
+        </header>
+
+        <div class="workspace">
+            <div class="editor-panel">
+                <div class="panel-header">
+                    <h3>Your Code</h3>
+                    <button id="runBtn" class="btn-run">▶ Run Code</button>
+                </div>
+                <textarea id="codeEditor">{{ game.template_code }}</textarea>
+                <div class="editor-footer">
+                    <span id="lineCount"></span>
+                </div>
+            </div>
+
+            <div class="game-panel">
+                <div class="panel-header">
+                    <h3>Game Preview</h3>
+                    <button id="stopBtn" class="btn-stop" style="display: none;">⏹ Stop</button>
+                </div>
+                <div id="gameCanvas">
+                    <canvas id="canvas" width="600" height="600"></canvas>
+                    <div id="gameOutput"></div>
+                </div>
+                <div id="gameError" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal" style="display: none;">
+        <div class="modal-content history-modal">
+            <div class="modal-header">
+                <h2>Version History</h2>
+                <button id="closeHistoryBtn" class="close-btn">×</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <p class="loading">Loading history...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff Modal -->
+    <div id="diffModal" class="modal" style="display: none;">
+        <div class="modal-content diff-modal">
+            <div class="modal-header">
+                <h2>Code Changes</h2>
+                <button id="closeDiffBtn" class="close-btn">×</button>
+            </div>
+            <pre id="diffContent"></pre>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <script>
+        const gameId = {{ game.id }};
+        const userId = new URLSearchParams(window.location.search).get('user_id');
+        let pyodide = null;
+        let autoSaveInterval = null;
+        let editor = null;
+
+        // Initialize CodeMirror
+        editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+            mode: 'python',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            lineWrapping: true
+        });
+
+        editor.on('change', () => {
+            const lines = editor.lineCount();
+            document.getElementById('lineCount').textContent = `${lines} lines`;
+        });
+
+        // Initialize Pyodide
+        async function initPyodide() {
+            document.getElementById('gameOutput').innerHTML = '<p class="loading">Loading Python environment...</p>';
+            try {
+                pyodide = await loadPyodide();
+                document.getElementById('gameOutput').innerHTML = '<p class="success">✓ Python ready! Click "Run Code" to start.</p>';
+            } catch (error) {
+                document.getElementById('gameOutput').innerHTML = '<p class="error">Error loading Python: ' + error.message + '</p>';
+            }
+        }
+
+        // Load saved code
+        async function loadCode() {
+            try {
+                const response = await fetch('/api/code/load', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, game_id: gameId })
+                });
+                const data = await response.json();
+                if (data.code) {
+                    editor.setValue(data.code);
+                }
+            } catch (error) {
+                console.error('Error loading code:', error);
+            }
+        }
+
+        // Auto-save code
+        async function autoSave() {
+            const code = editor.getValue();
+            try {
+                const response = await fetch('/api/code/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        game_id: gameId,
+                        code: code,
+                        is_checkpoint: false
+                    })
+                });
+                const data = await response.json();
+                if (response.ok && data.message !== 'No changes detected') {
+                    showSaveStatus('Auto-saved ✓');
+                }
+            } catch (error) {
+                console.error('Auto-save error:', error);
+            }
+        }
+
+        // Manual checkpoint save
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            const message = prompt('Add a note about this version (optional):');
+            if (message === null) return; // User cancelled
+
+            const code = editor.getValue();
+            try {
+                const response = await fetch('/api/code/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        game_id: gameId,
+                        code: code,
+                        message: message,
+                        is_checkpoint: true
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    showSaveStatus('Checkpoint saved! ✓', 3000);
+                }
+            } catch (error) {
+                showSaveStatus('Save failed ✗', 3000);
+            }
+        });
+
+        function showSaveStatus(message, duration = 2000) {
+            const status = document.getElementById('saveStatus');
+            status.textContent = message;
+            status.style.opacity = '1';
+            setTimeout(() => {
+                status.style.opacity = '0';
+            }, duration);
+        }
+
+        // Run Python code
+        document.getElementById('runBtn').addEventListener('click', async () => {
+            if (!pyodide) {
+                alert('Python is still loading. Please wait...');
+                return;
+            }
+
+            const code = editor.getValue();
+            const output = document.getElementById('gameOutput');
+            const errorDiv = document.getElementById('gameError');
+
+            output.innerHTML = '<p class="loading">Running your code...</p>';
+            errorDiv.textContent = '';
+
+            try {
+                // Capture print statements
+                pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+`);
+
+                // Run user code
+                pyodide.runPython(code);
+
+                // Get output
+                const stdout = pyodide.runPython('sys.stdout.getvalue()');
+
+                if (stdout) {
+                    output.innerHTML = '<pre>' + stdout + '</pre>';
+                } else {
+                    output.innerHTML = '<p class="success">✓ Code ran successfully!</p>';
+                }
+
+                // TODO: Integrate with canvas for actual game rendering
+
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                output.innerHTML = '<p class="error">Code has errors (see below)</p>';
+            }
+        });
+
+        // History button with pagination for unlimited saves
+        let currentOffset = 0;
+        const historyLimit = 50;
+
+        document.getElementById('historyBtn').addEventListener('click', async () => {
+            currentOffset = 0;
+            await loadHistory(currentOffset);
+        });
+
+        async function loadHistory(offset = 0) {
+            document.getElementById('historyModal').style.display = 'flex';
+            const historyList = document.getElementById('historyList');
+
+            if (offset === 0) {
+                historyList.innerHTML = '<p class="loading">Loading history...</p>';
+            } else {
+                historyList.innerHTML += '<p class="loading">Loading more...</p>';
+            }
+
+            try {
+                const response = await fetch('/api/code/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        game_id: gameId,
+                        limit: historyLimit,
+                        offset: offset
+                    })
+                });
+                const data = await response.json();
+
+                if (data.total === 0) {
+                    historyList.innerHTML = '<p>No saved versions yet. Your first auto-save will appear here!</p>';
+                    return;
+                }
+
+                const versions = data.versions;
+                const versionHtml = versions.map((v, index) => {
+                    const globalIndex = offset + index;
+                    return `
+                    <div class="history-item ${v.is_checkpoint ? 'checkpoint' : ''}">
+                        <div class="history-header">
+                            <span class="history-title">
+                                ${v.is_checkpoint ? '📌 Checkpoint' : '💾 Auto-save'} ${globalIndex === 0 ? '(Current)' : ''}
+                            </span>
+                            <span class="history-date">${new Date(v.created_at).toLocaleString()}</span>
+                        </div>
+                        ${v.message ? `<div class="history-message">${v.message}</div>` : ''}
+                        <div class="history-actions">
+                            <button class="btn-small view-btn" data-version-id="${v.id}">View Code</button>
+                            ${globalIndex > 0 ? `<button class="btn-small diff-btn" data-version-id="${v.id}" data-prev-id="${versions[0].id}">See Changes</button>` : ''}
+                            ${globalIndex > 0 ? `<button class="btn-small restore-btn" data-version-id="${v.id}">Restore This</button>` : ''}
+                        </div>
+                    </div>
+                `}).join('');
+
+                if (offset === 0) {
+                    historyList.innerHTML = `
+                        <div class="history-info">
+                            <p>Total saves: ${data.total}</p>
+                        </div>
+                        ${versionHtml}
+                    `;
+                } else {
+                    const loadingMsg = historyList.querySelector('.loading');
+                    if (loadingMsg) loadingMsg.remove();
+                    historyList.innerHTML += versionHtml;
+                }
+
+                // Add "Load More" button if there are more versions
+                if (data.has_more) {
+                    const loadMoreBtn = document.createElement('button');
+                    loadMoreBtn.className = 'btn-load-more';
+                    loadMoreBtn.textContent = `Load More (${data.total - offset - historyLimit} remaining)`;
+                    loadMoreBtn.onclick = () => {
+                        loadMoreBtn.remove();
+                        currentOffset += historyLimit;
+                        loadHistory(currentOffset);
+                    };
+                    historyList.appendChild(loadMoreBtn);
+                }
+
+                // Attach event listeners to new items
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.addEventListener('click', () => viewVersion(btn.dataset.versionId));
+                });
+
+                document.querySelectorAll('.diff-btn').forEach(btn => {
+                    btn.addEventListener('click', () => showDiff(btn.dataset.versionId, btn.dataset.prevId));
+                });
+
+                document.querySelectorAll('.restore-btn').forEach(btn => {
+                    btn.addEventListener('click', () => restoreVersion(btn.dataset.versionId));
+                });
+
+            } catch (error) {
+                historyList.innerHTML = '<p class="error">Error loading history</p>';
+            }
+        }
+
+        async function viewVersion(versionId) {
+            try {
+                const response = await fetch(`/api/code/version/${versionId}`);
+                const data = await response.json();
+                editor.setValue(data.code);
+                document.getElementById('historyModal').style.display = 'none';
+                alert('Viewing this version. Click "Save Checkpoint" if you want to keep these changes.');
+            } catch (error) {
+                alert('Error loading version');
+            }
+        }
+
+        async function showDiff(version1Id, version2Id) {
+            try {
+                const response = await fetch('/api/code/diff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ version1_id: version2Id, version2_id: version1Id })
+                });
+                const data = await response.json();
+
+                document.getElementById('diffContent').textContent = data.diff.join('\n');
+                document.getElementById('diffModal').style.display = 'flex';
+            } catch (error) {
+                alert('Error loading diff');
+            }
+        }
+
+        async function restoreVersion(versionId) {
+            if (!confirm('Restore this version? This will create a new checkpoint with the old code.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/code/restore/${versionId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    editor.setValue(data.code);
+                    document.getElementById('historyModal').style.display = 'none';
+                    showSaveStatus('Version restored! ✓', 3000);
+                }
+            } catch (error) {
+                alert('Error restoring version');
+            }
+        }
+
+        // Modal close buttons
+        document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+            document.getElementById('historyModal').style.display = 'none';
+        });
+
+        document.getElementById('closeDiffBtn').addEventListener('click', () => {
+            document.getElementById('diffModal').style.display = 'none';
+        });
+
+        // Initialize
+        if (!userId) {
+            alert('Please select a user first!');
+            window.location.href = '/';
+        } else {
+            loadCode();
+            initPyodide();
+
+            // Auto-save every 30 seconds
+            autoSaveInterval = setInterval(autoSave, 30000);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (autoSaveInterval) clearInterval(autoSaveInterval);
+        });
+    </script>
+</body>
+</html>
