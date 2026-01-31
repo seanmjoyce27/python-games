@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from sqlalchemy.exc import OperationalError
 import difflib
 import os
 import signal
@@ -92,9 +93,13 @@ class UserMissionProgress(db.Model):
 @app.route('/')
 def index():
     """Game selection page"""
-    games = Game.query.all()
-    users = User.query.all()
-    return render_template('index.html', games=games, users=users)
+    try:
+        games = Game.query.all()
+        users = User.query.all()
+        return render_template('index.html', games=games, users=users)
+    except OperationalError:
+        # DB/tables not ready yet (common on fresh deploy)
+        return "Starting up…", 200
 
 @app.route('/game/<int:game_id>')
 def game_page(game_id):
@@ -1784,6 +1789,10 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
+# Initialize database at module level for Gunicorn (runs when app is imported)
+# This ensures the DB and tables exist before any request handlers run
+init_db()
+
 if __name__ == '__main__':
     # Suppress resource tracker warnings from Werkzeug reloader
     # These are harmless and occur because Flask's dev server uses multiprocessing
@@ -1800,7 +1809,7 @@ if __name__ == '__main__':
         init_db()
 
     # Replit optimized: bind to 0.0.0.0 for external access
-    port = int(os.environ.get('PORT', 8443))
+    port = int(os.environ.get('PORT', 5000))
     is_debug = os.environ.get('FLASK_ENV') != 'production'
 
     try:

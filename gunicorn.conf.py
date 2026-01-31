@@ -2,8 +2,8 @@
 
 import os
 
-# Bind to all interfaces on port 8443 (or PORT env var)
-bind = f"0.0.0.0:{os.environ.get('PORT', '8443')}"
+# Port is handled by command line bind in .replit
+# bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
 
 # Worker configuration
 workers = int(os.environ.get('GUNICORN_WORKERS', '2'))

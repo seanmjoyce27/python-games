@@ -139,9 +139,12 @@ def wait_for_port(port, timeout=10, host='127.0.0.1'):
     return False
 
 
-def find_available_port(start_port=8443, max_attempts=100):
+def find_available_port(start_port=None, max_attempts=100):
     """
-    Find an available port starting from start_port
+    Find an available port
+    """
+    if start_port is None:
+        start_port = int(os.environ.get('PORT', 5000))
 
     Args:
         start_port (int): Port to start searching from
@@ -162,7 +165,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
     else:
-        port = 8443
+        port = int(os.environ.get('PORT', 5000))
 
     print(f"Port Cleanup Utility for Python Game Builder")
     print(f"=" * 50)
