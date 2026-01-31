@@ -98,12 +98,16 @@
 
         // Initialize Pyodide
         async function initPyodide() {
-            document.getElementById('gameOutput').innerHTML = '<p class="loading">Loading Python environment...</p>';
+            document.getElementById('gameOutput').innerHTML = '<p class="loading">⏳ Loading Python environment (this may take a minute)...</p>';
             try {
                 pyodide = await loadPyodide();
-                document.getElementById('gameOutput').innerHTML = '<p class="success">✓ Python ready! Click "Run Code" to start.</p>';
+                document.getElementById('gameOutput').innerHTML = `
+                    <p class="success">✓ Python is ready!</p>
+                    <p class="info">Click "▶ Run Code" to execute your Python code.</p>
+                    <p class="info">Add print() statements to see output here!</p>
+                `;
             } catch (error) {
-                document.getElementById('gameOutput').innerHTML = '<p class="error">Error loading Python: ' + error.message + '</p>';
+                document.getElementById('gameOutput').innerHTML = '<p class="error">❌ Error loading Python: ' + error.message + '</p>';
             }
         }
 
@@ -206,7 +210,7 @@ sys.stdout = StringIO()
 `);
 
                 // Run user code
-                pyodide.runPython(code);
+                const result = pyodide.runPython(code);
 
                 // Get output
                 const stdout = pyodide.runPython('sys.stdout.getvalue()');
@@ -214,7 +218,11 @@ sys.stdout = StringIO()
                 if (stdout) {
                     output.innerHTML = '<pre>' + stdout + '</pre>';
                 } else {
-                    output.innerHTML = '<p class="success">✓ Code ran successfully!</p>';
+                    output.innerHTML = `
+                        <p class="success">✓ Code ran successfully!</p>
+                        <p class="info">💡 Tip: Add print() statements to see output here!</p>
+                        <p class="info">Example: <code>print("Hello from Snake!")</code></p>
+                    `;
                 }
 
                 // TODO: Integrate with canvas for actual game rendering

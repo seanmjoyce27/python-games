@@ -377,6 +377,20 @@ canvas {
     color: #ef4444;
 }
 
+.info {
+    color: #6b7280;
+    font-size: 0.9em;
+    margin: 5px 0;
+}
+
+.info code {
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: #667eea;
+}
+
 /* History Modal */
 .history-modal {
     max-width: 800px;
