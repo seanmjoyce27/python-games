@@ -10,48 +10,64 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='function', autouse=False)
 def app():
-    """Create and configure a test Flask application"""
-    # Import here to get fresh app for each test
-    from app import app as flask_app, db as _db, User, Game, CodeVersion
+    """Create and configure a test Flask application with isolated database"""
+    # Import the actual app and db from app.py
+    import app as app_module
+    from app import db as _db, Game
 
-    # Create a temporary database file
-    db_fd, db_path = tempfile.mkstemp()
+    # Create a temporary database file for this test
+    db_fd, db_path = tempfile.mkstemp(suffix='.db')
 
-    flask_app.config.update({
-        'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
-        'WTF_CSRF_ENABLED': False,
-        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-    })
+    # Store original database URI
+    original_db_uri = app_module.app.config['SQLALCHEMY_DATABASE_URI']
 
-    # Create database tables
-    with flask_app.app_context():
-        _db.create_all()
+    # Configure the app to use the test database
+    app_module.app.config['TESTING'] = True
+    app_module.app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    app_module.app.config['WTF_CSRF_ENABLED'] = False
+    app_module.app.config['SECRET_KEY'] = 'test-secret-key'
 
-        # Add test game
-        snake = Game(
-            name='snake_test',
-            display_name='Test Snake',
-            description='Test game',
-            template_code='# Test snake code\nclass Snake:\n    pass'
-        )
-        _db.session.add(snake)
-        _db.session.commit()
+    # Push an application context
+    ctx = app_module.app.app_context()
+    ctx.push()
 
-    yield flask_app
+    # Clean up any existing session
+    _db.session.remove()
+
+    # Drop and recreate all tables in the new database
+    _db.drop_all()
+    _db.create_all()
+
+    # Add test game
+    snake = Game(
+        name='snake_test',
+        display_name='Test Snake',
+        description='Test game',
+        template_code='# Test snake code\nclass Snake:\n    pass'
+    )
+    _db.session.add(snake)
+    _db.session.commit()
+
+    yield app_module.app
 
     # Cleanup
-    with flask_app.app_context():
-        _db.session.remove()
-        _db.drop_all()
+    _db.session.remove()
+    _db.drop_all()
 
+    # Pop the application context
+    ctx.pop()
+
+    # Close and remove the temp database file
     os.close(db_fd)
     try:
         os.unlink(db_path)
-    except:
+    except Exception:
         pass
+
+    # Restore original configuration
+    app_module.app.config['SQLALCHEMY_DATABASE_URI'] = original_db_uri
 
 
 @pytest.fixture
@@ -71,11 +87,10 @@ def test_user(app):
     """Create a test user"""
     from app import db, User
 
-    with app.app_context():
-        user = User(username='testuser')
-        db.session.add(user)
-        db.session.commit()
-        user_id = user.id
+    user = User(username='testuser')
+    db.session.add(user)
+    db.session.commit()
+    user_id = user.id
 
     return user_id
 
@@ -85,9 +100,8 @@ def test_game(app):
     """Get the test game"""
     from app import db, Game
 
-    with app.app_context():
-        game = Game.query.filter_by(name='snake_test').first()
-        game_id = game.id
+    game = Game.query.filter_by(name='snake_test').first()
+    game_id = game.id
 
     return game_id
 
@@ -97,16 +111,15 @@ def test_code_version(app, test_user, test_game):
     """Create a test code version"""
     from app import db, CodeVersion
 
-    with app.app_context():
-        version = CodeVersion(
-            user_id=test_user,
-            game_id=test_game,
-            code='# Test code\nprint("hello")',
-            message='Test save',
-            is_checkpoint=True
-        )
-        db.session.add(version)
-        db.session.commit()
-        version_id = version.id
+    version = CodeVersion(
+        user_id=test_user,
+        game_id=test_game,
+        code='# Test code\nprint("hello")',
+        message='Test save',
+        is_checkpoint=True
+    )
+    db.session.add(version)
+    db.session.commit()
+    version_id = version.id
 
     return version_id

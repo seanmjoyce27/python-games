@@ -236,7 +236,7 @@ class TestCodeAPI:
         assert response.status_code == 201
         data = json.loads(response.data)
         assert data['code'] == code1
-        assert 'Restored' in data['message']
+        assert 'restored' in data['message'].lower()
 
     def test_diff_versions(self, client, test_user, test_game):
         """Test getting diff between versions"""
