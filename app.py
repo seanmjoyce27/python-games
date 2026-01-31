@@ -105,6 +105,11 @@ def game_page(game_id):
     users = User.query.all()
     return render_template('game.html', game=game, users=users)
 
+@app.route('/healthz')
+def health_check():
+    """Simple health check for deployment"""
+    return jsonify({'status': 'ok'}), 200
+
 # API Endpoints
 @app.route('/api/users', methods=['GET', 'POST'])
 def manage_users():
