@@ -412,7 +412,7 @@ Your child will be able to:
 - Review Replit console for errors
 
 ### **For Learning Questions**
-- Follow [GAME_PROGRESSION.md](GAME_PROGRESSION.MD)
+- Follow [GAME_PROGRESSION.md](GAME_PROGRESSION.md)
 - Start with easiest modifications
 - Use version control to experiment safely
 

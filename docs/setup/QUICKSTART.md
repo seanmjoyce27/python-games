@@ -371,6 +371,6 @@ Your child is learning if they:
 
 ---
 
-*For detailed information, see [GAME_PROGRESSION.md](GAME_PROGRESSION.md)*
+*For detailed information, see [GAME_PROGRESSION.md](../guides/GAME_PROGRESSION.md)*
 *For technical setup, see [REPLIT_SETUP.md](REPLIT_SETUP.md)*
-*For project details, see [SUMMARY.md](SUMMARY.md)*
+*For project details, see [SUMMARY.md](../reference/SUMMARY.md)*

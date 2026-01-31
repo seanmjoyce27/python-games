@@ -3,6 +3,9 @@
 # Startup script for Replit and local deployment
 echo "🎮 Starting Python Game Builder..."
 
+# Ensure we're in the project root
+cd "$(dirname "$0")/.."
+
 # Create instance directory if it doesn't exist
 mkdir -p instance
 

@@ -253,6 +253,7 @@ header p {
 .workspace {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    gap: 20px;
     flex: 1;
     overflow: hidden;
 }
@@ -550,10 +551,300 @@ canvas {
     background: #5568d3;
 }
 
+/* Missions Button */
+.btn-missions {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: all 0.3s;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-missions:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+/* Missions Overlay */
+.missions-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.missions-overlay.active {
+    display: flex;
+    opacity: 1;
+    justify-content: flex-end;
+}
+
+.missions-sidebar {
+    background: white;
+    width: 420px;
+    height: 100%;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.missions-overlay.active .missions-sidebar {
+    transform: translateX(0);
+}
+
+.missions-sidebar-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.missions-sidebar-header h2 {
+    margin: 0;
+    font-size: 1.8em;
+}
+
+.missions-sidebar-header .close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.missions-sidebar-header .close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.missions-list-overlay {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mission-item {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.mission-item:hover {
+    transform: translateX(-4px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%);
+}
+
+.mission-item.in-progress {
+    border-color: #ffa500;
+    background: linear-gradient(135deg, #fff8e8 0%, #fffaf0 100%);
+    box-shadow: 0 4px 16px rgba(255, 165, 0, 0.15);
+}
+
+.mission-item.in-progress:hover {
+    background: linear-gradient(135deg, #fff3d9 0%, #fffaf0 100%);
+    box-shadow: 0 8px 24px rgba(255, 165, 0, 0.25);
+}
+
+.mission-item.completed {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f1 100%);
+    box-shadow: 0 4px 16px rgba(40, 167, 69, 0.15);
+}
+
+.mission-item.completed:hover {
+    background: linear-gradient(135deg, #d4edda 0%, #f1f8f1 100%);
+    box-shadow: 0 8px 24px rgba(40, 167, 69, 0.25);
+}
+
+.mission-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.mission-status {
+    font-size: 1.3em;
+}
+
+.mission-number {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 0.9em;
+}
+
+.mission-title-short {
+    font-size: 0.95em;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    color: #333;
+}
+
+.mission-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.85em;
+}
+
+.difficulty {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75em;
+}
+
+.difficulty.beginner {
+    background: #d4edda;
+    color: #155724;
+}
+
+.difficulty.intermediate {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.difficulty.advanced {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.difficulty.expert {
+    background: #d6d8db;
+    color: #383d41;
+}
+
+.attempts {
+    color: #6c757d;
+    font-size: 0.8em;
+}
+
+/* Mission Modal */
+.mission-modal {
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.mission-description {
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    color: #495057;
+}
+
+.mission-hints {
+    background: #e7f3ff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.mission-hints h4 {
+    margin-bottom: 10px;
+    color: #667eea;
+}
+
+.mission-hints ul {
+    margin-left: 20px;
+}
+
+.mission-hints li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.mission-feedback {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    font-weight: 500;
+}
+
+.mission-feedback.success {
+    background: #d4edda;
+    color: #155724;
+    border: 2px solid #28a745;
+}
+
+.mission-feedback.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 2px solid #dc3545;
+}
+
+.mission-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+.btn-success:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .workspace {
         grid-template-columns: 1fr;
+    }
+
+    .missions-sidebar {
+        width: 100%;
     }
 
     .game-header {
@@ -564,5 +855,11 @@ canvas {
     .header-actions {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .btn-missions {
+        order: -1;
+        width: 100%;
     }
 }

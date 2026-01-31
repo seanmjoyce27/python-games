@@ -52,6 +52,33 @@ class CodeVersion(db.Model):
 
     game = db.relationship('Game', backref='versions')
 
+class Mission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    order = db.Column(db.Integer, nullable=False)  # Mission sequence number
+    difficulty = db.Column(db.String(20))  # beginner, intermediate, advanced, expert
+    validation_type = db.Column(db.String(50), nullable=False)  # code_contains, code_matches, variable_changed, etc.
+    validation_data = db.Column(db.Text)  # JSON string with validation criteria
+    hints = db.Column(db.Text)  # JSON array of hints
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    game = db.relationship('Game', backref='missions')
+
+class UserMissionProgress(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    mission_id = db.Column(db.Integer, db.ForeignKey('mission.id'), nullable=False)
+    status = db.Column(db.String(20), default='not_started')  # not_started, in_progress, completed, failed
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    attempts = db.Column(db.Integer, default=0)
+    validation_result = db.Column(db.Text)  # JSON with validation details
+
+    user = db.relationship('User', backref='mission_progress')
+    mission = db.relationship('Mission', backref='user_progress')
+
 # Routes
 @app.route('/')
 def index():
@@ -289,6 +316,184 @@ def restore_version(version_id):
         'code': new_version.code
     }), 201
 
+# Mission API Endpoints
+@app.route('/api/missions/<int:game_id>', methods=['GET'])
+def get_missions(game_id):
+    """Get all missions for a specific game, ordered by sequence"""
+    missions = Mission.query.filter_by(game_id=game_id).order_by(Mission.order).all()
+    return jsonify([{
+        'id': m.id,
+        'title': m.title,
+        'description': m.description,
+        'order': m.order,
+        'difficulty': m.difficulty,
+        'hints': m.hints
+    } for m in missions])
+
+@app.route('/api/missions/<int:mission_id>/progress', methods=['GET', 'POST'])
+def mission_progress(mission_id):
+    """Get or update progress for a mission"""
+    if request.method == 'GET':
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id required'}), 400
+
+        progress = UserMissionProgress.query.filter_by(
+            user_id=user_id,
+            mission_id=mission_id
+        ).first()
+
+        if not progress:
+            return jsonify({
+                'status': 'not_started',
+                'attempts': 0
+            })
+
+        return jsonify({
+            'id': progress.id,
+            'status': progress.status,
+            'started_at': progress.started_at.isoformat() if progress.started_at else None,
+            'completed_at': progress.completed_at.isoformat() if progress.completed_at else None,
+            'attempts': progress.attempts,
+            'validation_result': progress.validation_result
+        })
+
+    # POST - Start or update mission
+    data = request.json
+    user_id = data.get('user_id')
+    action = data.get('action')  # 'start', 'validate', 'complete'
+
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
+
+    progress = UserMissionProgress.query.filter_by(
+        user_id=user_id,
+        mission_id=mission_id
+    ).first()
+
+    if action == 'start':
+        if not progress:
+            progress = UserMissionProgress(
+                user_id=user_id,
+                mission_id=mission_id,
+                status='in_progress',
+                started_at=datetime.now(timezone.utc)
+            )
+            db.session.add(progress)
+        else:
+            progress.status = 'in_progress'
+            if not progress.started_at:
+                progress.started_at = datetime.now(timezone.utc)
+
+        db.session.commit()
+        return jsonify({'message': 'Mission started', 'status': progress.status})
+
+    return jsonify({'error': 'Invalid action'}), 400
+
+@app.route('/api/missions/<int:mission_id>/validate', methods=['POST'])
+def validate_mission(mission_id):
+    """Validate user's code against mission criteria"""
+    import json
+    import re
+
+    data = request.json
+    user_id = data.get('user_id')
+    code = data.get('code')
+
+    if not user_id or code is None:
+        return jsonify({'error': 'user_id and code required'}), 400
+
+    mission = db.session.get(Mission, mission_id)
+    if not mission:
+        return jsonify({'error': 'Mission not found'}), 404
+
+    # Get or create progress
+    progress = UserMissionProgress.query.filter_by(
+        user_id=user_id,
+        mission_id=mission_id
+    ).first()
+
+    if not progress:
+        progress = UserMissionProgress(
+            user_id=user_id,
+            mission_id=mission_id,
+            status='in_progress',
+            started_at=datetime.now(timezone.utc)
+        )
+        db.session.add(progress)
+
+    progress.attempts += 1
+
+    # Parse validation data
+    validation_criteria = json.loads(mission.validation_data) if mission.validation_data else {}
+    validation_type = mission.validation_type
+
+    success = False
+    feedback = ""
+
+    # Validation logic based on type
+    if validation_type == 'code_contains':
+        required_text = validation_criteria.get('text', '')
+        if required_text in code:
+            success = True
+            feedback = validation_criteria.get('success_message', 'Great job! You added the required code.')
+        else:
+            feedback = validation_criteria.get('failure_message', f'Missing required code: {required_text}')
+
+    elif validation_type == 'variable_changed':
+        var_name = validation_criteria.get('variable')
+        old_value = str(validation_criteria.get('old_value'))
+        new_value_pattern = validation_criteria.get('new_value_pattern', '.*')
+
+        # Find variable assignment
+        pattern = rf'{var_name}\s*=\s*([^\n]+)'
+        matches = re.findall(pattern, code)
+
+        if matches:
+            current_value = matches[0].strip()
+            if current_value != old_value and re.match(new_value_pattern, current_value):
+                success = True
+                feedback = validation_criteria.get('success_message', f'Excellent! You changed {var_name}.')
+            else:
+                feedback = validation_criteria.get('failure_message', f'Try changing {var_name} to a different value.')
+        else:
+            feedback = f'Could not find {var_name} in your code.'
+
+    elif validation_type == 'code_pattern':
+        pattern = validation_criteria.get('pattern')
+        if re.search(pattern, code, re.MULTILINE):
+            success = True
+            feedback = validation_criteria.get('success_message', 'Perfect! Your code matches the pattern.')
+        else:
+            feedback = validation_criteria.get('failure_message', 'Your code doesn\'t match the expected pattern yet.')
+
+    elif validation_type == 'line_count_increased':
+        original_code = db.session.get(Game, mission.game_id).template_code
+        original_lines = len([line for line in original_code.split('\n') if line.strip()])
+        current_lines = len([line for line in code.split('\n') if line.strip()])
+        min_increase = validation_criteria.get('min_increase', 1)
+
+        if current_lines >= original_lines + min_increase:
+            success = True
+            feedback = validation_criteria.get('success_message', f'Awesome! You added {current_lines - original_lines} new lines of code.')
+        else:
+            feedback = validation_criteria.get('failure_message', f'Try adding at least {min_increase} more lines of code.')
+
+    # Update progress
+    if success:
+        progress.status = 'completed'
+        progress.completed_at = datetime.now(timezone.utc)
+
+    progress.validation_result = json.dumps({'success': success, 'feedback': feedback})
+    db.session.commit()
+
+    return jsonify({
+        'success': success,
+        'feedback': feedback,
+        'attempts': progress.attempts,
+        'status': progress.status
+    })
+
 def init_db():
     """Initialize database with sample games"""
     # Ensure instance directory exists (important for Flask reloader)
@@ -388,26 +593,18 @@ food = Food()
 score = 0
 frame_count = 0
 game_over = False
-
-# Handle keyboard input
-def handle_keys():
-    """Check which keys are pressed"""
-    if document.querySelector("#canvas"):
-        # Arrow keys
-        if hasattr(document, 'lastKey'):
-            key = document.lastKey
-            if key == "ArrowRight":
-                snake.change_direction("right")
-            elif key == "ArrowLeft":
-                snake.change_direction("left")
-            elif key == "ArrowUp":
-                snake.change_direction("up")
-            elif key == "ArrowDown":
-                snake.change_direction("down")
+game_started = False
 
 def update():
     """Update game logic (called every frame)"""
-    global frame_count, score, game_over
+    global frame_count, score, game_over, game_started
+
+    # Check for SPACE to start game
+    from js import is_key_pressed
+    if not game_started and not game_over:
+        if is_key_pressed(' '):
+            game_started = True
+        return
 
     if game_over:
         return
@@ -417,8 +614,16 @@ def update():
     if frame_count % 6 != 0:
         return
 
-    # Handle input
-    handle_keys()
+    # Handle keyboard input
+    from js import is_key_pressed
+    if is_key_pressed("ArrowRight"):
+        snake.change_direction("right")
+    elif is_key_pressed("ArrowLeft"):
+        snake.change_direction("left")
+    elif is_key_pressed("ArrowUp"):
+        snake.change_direction("up")
+    elif is_key_pressed("ArrowDown"):
+        snake.change_direction("down")
 
     # Move snake
     snake.move()
@@ -441,6 +646,13 @@ def draw():
 
     # Draw background
     draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Show start screen if game hasn't started
+    if not game_started and not game_over:
+        draw_text("SNAKE GAME", 180, 250, "#44ff44", "52px Arial")
+        draw_text("Press SPACE to Start", 180, 320, "#ffffff", "28px Arial")
+        draw_text("Use Arrow Keys to Move", 160, 360, "#888888", "20px Arial")
+        return
 
     # Draw grid (optional, for visual reference)
     for i in range(0, CANVAS_WIDTH, GRID_SIZE):
@@ -475,9 +687,6 @@ def draw():
     if game_over:
         draw_text("GAME OVER!", 200, 300, "#ff4444", "48px Arial")
         draw_text("Refresh to play again", 210, 350, "#ffffff", "24px Arial")
-
-# Setup keyboard event listener
-document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
 
 # TODO: Try changing the speed (change the % 6 in update function)
 # TODO: Try changing the colors of the snake or food
@@ -560,28 +769,34 @@ player1 = Paddle(30, CANVAS_HEIGHT // 2 - 40)    # Left paddle
 player2 = Paddle(CANVAS_WIDTH - 45, CANVAS_HEIGHT // 2 - 40)  # Right paddle
 ball = Ball()
 game_over = False
+game_started = False
 winner = ""
 
 def update():
     """Update game logic (called every frame)"""
-    global game_over, winner
+    global game_over, game_started, winner
+
+    # Check for SPACE to start game
+    from js import is_key_pressed
+    if not game_started and not game_over:
+        if is_key_pressed(' '):
+            game_started = True
+        return
 
     if game_over:
         return
 
     # Handle player 1 controls (W/S)
-    if hasattr(document, 'lastKey'):
-        key = document.lastKey
-        if key in ['w', 'W']:
-            player1.move_up()
-        elif key in ['s', 'S']:
-            player1.move_down()
+    if is_key_pressed('w') or is_key_pressed('W'):
+        player1.move_up()
+    elif is_key_pressed('s') or is_key_pressed('S'):
+        player1.move_down()
 
-        # Handle player 2 controls (Arrow keys)
-        if key == 'ArrowUp':
-            player2.move_up()
-        elif key == 'ArrowDown':
-            player2.move_down()
+    # Handle player 2 controls (Arrow keys)
+    if is_key_pressed('ArrowUp'):
+        player2.move_up()
+    elif is_key_pressed('ArrowDown'):
+        player2.move_down()
 
     # Move ball
     ball.move()
@@ -627,6 +842,14 @@ def draw():
     # Draw background
     draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
 
+    # Show start screen if game hasn't started
+    if not game_started and not game_over:
+        draw_text("PONG", 240, 220, "#ffffff", "72px Arial")
+        draw_text("Press SPACE to Start", 180, 300, "#ffffff", "28px Arial")
+        draw_text("Player 1: W/S", 210, 350, "#4444ff", "20px Arial")
+        draw_text("Player 2: ↑/↓", 210, 380, "#ff4444", "20px Arial")
+        return
+
     # Draw center line
     for i in range(0, CANVAS_HEIGHT, 20):
         draw_rect(CANVAS_WIDTH // 2 - 2, i, 4, 10, "#444444")
@@ -650,9 +873,6 @@ def draw():
     if game_over:
         draw_text(f"{winner} WINS!", 180, CANVAS_HEIGHT // 2, "#44ff44", "48px Arial")
         draw_text("Refresh to play again", 200, CANVAS_HEIGHT // 2 + 50, "#ffffff", "20px Arial")
-
-# Setup keyboard event listener
-document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
 
 # TODO: Make paddles bigger or smaller (change height/width)
 # TODO: Make the ball faster (change initial speed_x/speed_y)
@@ -765,17 +985,17 @@ def update():
     frame_count += 1
 
     # Handle player movement
-    if hasattr(document, 'lastKey'):
-        key = document.lastKey
-        if key == 'ArrowLeft':
-            player.move_left()
-        elif key == 'ArrowRight':
-            player.move_right()
-        elif key == ' ' and player.can_shoot:
-            # Shoot bullet
-            bullets.append(Bullet(player.x + player.width // 2 - 2, player.y))
-            player.can_shoot = False
-            player.shoot_cooldown = 15
+    from js import is_key_pressed
+    if is_key_pressed('ArrowLeft'):
+        player.move_left()
+    elif is_key_pressed('ArrowRight'):
+        player.move_right()
+
+    if is_key_pressed(' ') and player.can_shoot:
+        # Shoot bullet
+        bullets.append(Bullet(player.x + player.width // 2 - 2, player.y))
+        player.can_shoot = False
+        player.shoot_cooldown = 15
 
     # Handle shoot cooldown
     if player.shoot_cooldown > 0:
@@ -868,9 +1088,6 @@ def draw():
     if game_won:
         draw_text("YOU WIN!", 200, CANVAS_HEIGHT // 2, "#44ff44", "52px Arial")
         draw_text(f"Final Score: {score}", 200, CANVAS_HEIGHT // 2 + 60, "#ffffff", "28px Arial")
-
-# Setup keyboard
-document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
 
 # TODO: Add more alien rows (change range(5) to range(7))
 # TODO: Make aliens move faster (change alien_speed)
@@ -969,28 +1186,27 @@ def update():
     if frame_count % 8 != 0:  # Only check input every 8 frames
         return
 
-    if hasattr(document, 'lastKey'):
-        key = document.lastKey
-        moved = False
+    from js import is_key_pressed
+    moved = False
 
-        if key == 'ArrowUp':
-            moved = player.move(0, -1, maze.grid)
-        elif key == 'ArrowDown':
-            moved = player.move(0, 1, maze.grid)
-        elif key == 'ArrowLeft':
-            moved = player.move(-1, 0, maze.grid)
-        elif key == 'ArrowRight':
-            moved = player.move(1, 0, maze.grid)
+    if is_key_pressed('ArrowUp'):
+        moved = player.move(0, -1, maze.grid)
+    elif is_key_pressed('ArrowDown'):
+        moved = player.move(0, 1, maze.grid)
+    elif is_key_pressed('ArrowLeft'):
+        moved = player.move(-1, 0, maze.grid)
+    elif is_key_pressed('ArrowRight'):
+        moved = player.move(1, 0, maze.grid)
 
-        if moved:
-            # Check for treasure
-            if maze.grid[player.y][player.x] == 3:
-                treasures_collected += 1
-                maze.grid[player.y][player.x] = 0  # Remove treasure
+    if moved:
+        # Check for treasure
+        if maze.grid[player.y][player.x] == 3:
+            treasures_collected += 1
+            maze.grid[player.y][player.x] = 0  # Remove treasure
 
-            # Check for exit
-            if maze.grid[player.y][player.x] == 2:
-                won = True
+        # Check for exit
+        if maze.grid[player.y][player.x] == 2:
+            won = True
 
 def draw():
     """Draw everything"""
@@ -1033,9 +1249,6 @@ def draw():
         draw_rect(100, 250, 400, 100, "#000000")
         draw_text("YOU WIN!", 180, 300, "#44ff44", "48px Arial")
         draw_text(f"Moves: {player.moves}", 220, 330, "#ffffff", "24px Arial")
-
-# Setup keyboard
-document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
 
 # TODO: Create a bigger maze (add more rows/columns)
 # TODO: Add more treasures to collect
@@ -1185,41 +1398,41 @@ def update():
         return
 
     # Handle keyboard input with delay
-    if hasattr(document, 'lastKey'):
-        key = document.lastKey
+    from js import is_key_pressed
 
-        # Only process if key changed or enough time passed
-        if key != last_key or move_delay <= 0:
-            if key == 'ArrowLeft':
-                current_piece.move_left()
-                if board.check_collision(current_piece):
-                    current_piece.move_right()
-                move_delay = 5
-                last_key = key
-
-            elif key == 'ArrowRight':
+    # Left movement
+    if is_key_pressed('ArrowLeft'):
+        if last_key != 'ArrowLeft' or move_delay <= 0:
+            current_piece.move_left()
+            if board.check_collision(current_piece):
                 current_piece.move_right()
-                if board.check_collision(current_piece):
-                    current_piece.move_left()
-                move_delay = 5
-                last_key = key
-
-            elif key == 'ArrowUp':
-                current_piece.rotate()
-                if board.check_collision(current_piece):
-                    # Rotate back if collision
-                    for _ in range(3):
-                        current_piece.rotate()
-                move_delay = 10
-                last_key = key
-
-            elif key == 'ArrowDown':
-                fast_drop = True
-                last_key = key
-            else:
-                fast_drop = False
-                if key != last_key:
-                    last_key = None
+            move_delay = 5
+            last_key = 'ArrowLeft'
+    # Right movement
+    elif is_key_pressed('ArrowRight'):
+        if last_key != 'ArrowRight' or move_delay <= 0:
+            current_piece.move_right()
+            if board.check_collision(current_piece):
+                current_piece.move_left()
+            move_delay = 5
+            last_key = 'ArrowRight'
+    # Rotation
+    elif is_key_pressed('ArrowUp'):
+        if last_key != 'ArrowUp' or move_delay <= 0:
+            current_piece.rotate()
+            if board.check_collision(current_piece):
+                # Rotate back if collision
+                for _ in range(3):
+                    current_piece.rotate()
+            move_delay = 10
+            last_key = 'ArrowUp'
+    # Fast drop
+    elif is_key_pressed('ArrowDown'):
+        fast_drop = True
+        last_key = 'ArrowDown'
+    else:
+        fast_drop = False
+        last_key = None
 
     if move_delay > 0:
         move_delay -= 1
@@ -1315,10 +1528,6 @@ def draw():
         draw_text("GAME OVER", offset_x + 30, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2, "#ff4444", "32px Arial")
         draw_text("Refresh to play again", offset_x + 10, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 + 35, "#ffffff", "16px Arial")
 
-# Setup keyboard
-document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
-document.addEventListener("keyup", lambda e: setattr(document, 'lastKey', None) if document.lastKey == e.key else None)
-
 # TODO: Make game faster as score increases (reduce drop_speed)
 # TODO: Add sound effects for line clears
 # TODO: Track and display high score
@@ -1332,10 +1541,127 @@ document.addEventListener("keyup", lambda e: setattr(document, 'lastKey', None) 
         )
         db.session.add(tetris)
 
-        # Commit all games
+        # Commit games first to get IDs
         db.session.commit()
 
-        print("Database initialized with 5 games: Snake, Pong, Space Invaders, Maze, Tetris!")
+        # Add missions for Snake game
+        import json
+
+        # Snake Mission 1: Change speed
+        mission1 = Mission(
+            game_id=snake.id,
+            title="Change the Snake's Speed",
+            description="Find the `speed` variable (around line 8) and change it to a different number. Try 3 for slow, 10 for fast, or 20 for super fast! What feels best to you?",
+            order=1,
+            difficulty="beginner",
+            validation_type="variable_changed",
+            validation_data=json.dumps({
+                'variable': 'speed',
+                'old_value': '5',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Awesome! You changed the speed. Try running the game to see how it feels!',
+                'failure_message': 'Find the speed variable and change it to a different number.'
+            }),
+            hints=json.dumps([
+                "Look for a line that says 'speed = 5'",
+                "Try changing 5 to 10 to make the snake faster",
+                "Numbers like 3, 8, 15, or 20 all work - pick what's fun!"
+            ])
+        )
+        db.session.add(mission1)
+
+        # Snake Mission 2: Change grid size
+        mission2 = Mission(
+            game_id=snake.id,
+            title="Make the Game Board Bigger or Smaller",
+            description="Find `GRID_SIZE = 20` (around line 10) and change it. Try 15 for a smaller board or 25 for a bigger board!",
+            order=2,
+            difficulty="beginner",
+            validation_type="variable_changed",
+            validation_data=json.dumps({
+                'variable': 'GRID_SIZE',
+                'old_value': '20',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Perfect! You resized the game board. The snake has more (or less) room to move now!',
+                'failure_message': 'Look for GRID_SIZE and change it from 20 to another number.'
+            }),
+            hints=json.dumps([
+                "GRID_SIZE controls how big the game board is",
+                "Smaller numbers = smaller board, bigger numbers = bigger board",
+                "Try 15, 25, or 30 and see what you like!"
+            ])
+        )
+        db.session.add(mission2)
+
+        # Snake Mission 3: Make snake longer at start
+        mission3 = Mission(
+            game_id=snake.id,
+            title="Start with a Longer Snake",
+            description="Find where the snake's segments list is created and add more segments. Make your snake start with 5 segments instead of 3!",
+            order=3,
+            difficulty="intermediate",
+            validation_type="code_pattern",
+            validation_data=json.dumps({
+                'pattern': r'self\.segments\s*=\s*\[[^\]]*,\s*[^\]]*,\s*[^\]]*,\s*[^\]]*,',
+                'success_message': 'Excellent! Your snake now starts longer. That makes the game harder!',
+                'failure_message': 'Add more coordinate tuples to the segments list. Each one is like (x, y).'
+            }),
+            hints=json.dumps([
+                "Look for self.segments = [(10,10), (9,10), (8,10)]",
+                "Add more tuples like (7,10), (6,10) to make it longer",
+                "Each tuple represents one segment of the snake"
+            ])
+        )
+        db.session.add(mission3)
+
+        # Snake Mission 4: Add score tracking
+        mission4 = Mission(
+            game_id=snake.id,
+            title="Add a Score Variable",
+            description="Add a new variable called 'score' to track points. Initialize it to 0 in the __init__ method, then increase it by 10 each time the snake eats food!",
+            order=4,
+            difficulty="intermediate",
+            validation_type="code_contains",
+            validation_data=json.dumps({
+                'text': 'self.score',
+                'success_message': 'Great job! You added score tracking. Now players can see their progress!',
+                'failure_message': 'Add "self.score = 0" in the Snake __init__ method.'
+            }),
+            hints=json.dumps([
+                "In the __init__ method, add: self.score = 0",
+                "In the grow() method, add: self.score += 10",
+                "You can display the score using draw_text in the draw() function"
+            ])
+        )
+        db.session.add(mission4)
+
+        # Snake Mission 5: Add new features
+        mission5 = Mission(
+            game_id=snake.id,
+            title="Add Your Own Creative Feature",
+            description="Now it's your turn to be creative! Add at least 5 new lines of code that do something interesting. Ideas: change colors, add obstacles, make the snake rainbow, or anything you can imagine!",
+            order=5,
+            difficulty="advanced",
+            validation_type="line_count_increased",
+            validation_data=json.dumps({
+                'min_increase': 5,
+                'success_message': 'Amazing! You added your own creative code. You\'re becoming a real game developer!',
+                'failure_message': 'Add at least 5 more lines of code to create something new and interesting.'
+            }),
+            hints=json.dumps([
+                "Try changing the snake color in the draw() function",
+                "Add obstacles that the snake must avoid",
+                "Make the food change colors or size",
+                "Add a timer or level system",
+                "Be creative - there's no wrong answer!"
+            ])
+        )
+        db.session.add(mission5)
+
+        # Commit missions
+        db.session.commit()
+
+        print("Database initialized with 5 games and missions for Snake!")
 
 def signal_handler(sig, frame):
     """Handle SIGINT (Ctrl+C) and SIGTERM gracefully"""

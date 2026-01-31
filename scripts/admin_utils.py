@@ -4,9 +4,14 @@ Admin utilities for Python Game Builder
 Run with: python admin_utils.py [command]
 """
 
+import sys
+import os
+
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import app, db, User, Game, CodeVersion
 from datetime import datetime
-import sys
 
 def stats():
     """Show database statistics"""

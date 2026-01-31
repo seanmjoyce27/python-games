@@ -16,6 +16,7 @@
             <a href="/" class="back-btn">← Back</a>
             <h1>{{ game.display_name }}</h1>
             <div class="header-actions">
+                <button id="missionsBtn" class="btn-missions">🎯 Missions</button>
                 <span id="saveStatus"></span>
                 <button id="historyBtn" class="btn-secondary">📜 History</button>
                 <button id="saveBtn" class="btn-primary">💾 Save Checkpoint</button>
@@ -69,6 +70,42 @@
                 <button id="closeDiffBtn" class="close-btn">×</button>
             </div>
             <pre id="diffContent"></pre>
+        </div>
+    </div>
+
+    <!-- Missions Overlay Panel -->
+    <div id="missionsOverlay" class="missions-overlay">
+        <div class="missions-sidebar">
+            <div class="missions-sidebar-header">
+                <h2>🎯 Missions</h2>
+                <button id="closeMissionsOverlay" class="close-btn">×</button>
+            </div>
+            <div id="missionsListOverlay" class="missions-list-overlay">
+                <p class="loading">Loading missions...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mission Detail Modal -->
+    <div id="missionModal" class="modal" style="display: none;">
+        <div class="modal-content mission-modal">
+            <div class="modal-header">
+                <h2 id="missionTitle"></h2>
+                <button id="closeMissionBtn" class="close-btn">×</button>
+            </div>
+            <div class="mission-content">
+                <p id="missionDescription" class="mission-description"></p>
+                <div id="missionHints" class="mission-hints" style="display: none;">
+                    <h4>💡 Hints:</h4>
+                    <ul id="hintsList"></ul>
+                </div>
+                <div id="missionFeedback" class="mission-feedback" style="display: none;"></div>
+                <div class="mission-actions">
+                    <button id="startMissionBtn" class="btn-primary">Start Mission</button>
+                    <button id="showHintsBtn" class="btn-secondary" style="display: none;">Show Hints</button>
+                    <button id="validateMissionBtn" class="btn-success" style="display: none;">✓ Check My Code</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -208,6 +245,24 @@
                 const canvas = document.getElementById('canvas');
                 const ctx = canvas.getContext('2d');
 
+                // Keyboard state tracking
+                window.keysPressed = {};
+                window.lastKeyPressed = '';
+
+                // Setup keyboard listeners
+                window.addEventListener('keydown', (e) => {
+                    window.keysPressed[e.key] = true;
+                    window.lastKeyPressed = e.key;
+                    // Prevent arrow keys from scrolling
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+
+                window.addEventListener('keyup', (e) => {
+                    window.keysPressed[e.key] = false;
+                });
+
                 // Expose drawing functions to window for Python to access via 'js' module
                 window.clear_screen = function () {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -229,6 +284,15 @@
                     ctx.fillStyle = color;
                     ctx.font = font || '20px Arial';
                     ctx.fillText(text, x, y);
+                };
+
+                // Keyboard helper functions
+                window.is_key_pressed = function(key) {
+                    return window.keysPressed[key] === true;
+                };
+
+                window.get_last_key = function() {
+                    return window.lastKeyPressed;
                 };
 
                 // Game Loop State
@@ -478,6 +542,253 @@ sys.stdout = StringIO()
         window.addEventListener('beforeunload', () => {
             if (autoSaveInterval) clearInterval(autoSaveInterval);
         });
+
+        // ===== MISSIONS SYSTEM =====
+        let missions = [];
+        let currentMission = null;
+        let missionProgress = {};
+
+        // Load missions for this game
+        async function loadMissions() {
+            try {
+                const response = await fetch(`/api/missions/${gameId}`);
+                missions = await response.json();
+                renderMissionsList();
+
+                // Load progress for each mission
+                if (userId) {
+                    for (const mission of missions) {
+                        await loadMissionProgress(mission.id);
+                    }
+                    renderMissionsList();
+                }
+            } catch (error) {
+                console.error('Error loading missions:', error);
+                document.getElementById('missionsList').innerHTML = '<p class="error">Failed to load missions</p>';
+            }
+        }
+
+        async function loadMissionProgress(missionId) {
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`/api/missions/${missionId}/progress?user_id=${userId}`);
+                const progress = await response.json();
+                missionProgress[missionId] = progress;
+            } catch (error) {
+                console.error('Error loading mission progress:', error);
+            }
+        }
+
+        function renderMissionsList() {
+            const container = document.getElementById('missionsListOverlay');
+
+            if (missions.length === 0) {
+                container.innerHTML = '<p class="info">No missions available yet for this game.</p>';
+                return;
+            }
+
+            container.innerHTML = missions.map(mission => {
+                const progress = missionProgress[mission.id] || { status: 'not_started', attempts: 0 };
+                const statusEmoji = {
+                    'not_started': '⭕',
+                    'in_progress': '🔄',
+                    'completed': '✅',
+                    'failed': '❌'
+                };
+                const statusClass = progress.status.replace('_', '-');
+
+                return `
+                    <div class="mission-item ${statusClass}" data-mission-id="${mission.id}">
+                        <div class="mission-header">
+                            <span class="mission-status">${statusEmoji[progress.status]}</span>
+                            <span class="mission-number">#${mission.order}</span>
+                            <h4 class="mission-title-short">${mission.title}</h4>
+                        </div>
+                        <div class="mission-meta">
+                            <span class="difficulty ${mission.difficulty}">${mission.difficulty}</span>
+                            ${progress.attempts > 0 ? `<span class="attempts">${progress.attempts} attempts</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers
+            document.querySelectorAll('.mission-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const missionId = parseInt(item.dataset.missionId);
+                    showMissionDetail(missionId);
+                });
+            });
+        }
+
+        function showMissionDetail(missionId) {
+            currentMission = missions.find(m => m.id === missionId);
+            if (!currentMission) return;
+
+            const progress = missionProgress[missionId] || { status: 'not_started', attempts: 0 };
+
+            // Set modal content
+            document.getElementById('missionTitle').textContent = `Mission ${currentMission.order}: ${currentMission.title}`;
+            document.getElementById('missionDescription').textContent = currentMission.description;
+
+            // Parse and display hints
+            const hints = JSON.parse(currentMission.hints || '[]');
+            if (hints.length > 0) {
+                document.getElementById('hintsList').innerHTML = hints.map(hint => `<li>${hint}</li>`).join('');
+            }
+
+            // Update button states based on progress
+            const startBtn = document.getElementById('startMissionBtn');
+            const hintsBtn = document.getElementById('showHintsBtn');
+            const validateBtn = document.getElementById('validateMissionBtn');
+            const feedbackDiv = document.getElementById('missionFeedback');
+
+            if (progress.status === 'completed') {
+                startBtn.style.display = 'none';
+                hintsBtn.style.display = 'none';
+                validateBtn.style.display = 'none';
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.className = 'mission-feedback success';
+                feedbackDiv.textContent = '✅ Mission Complete! Great job!';
+            } else if (progress.status === 'in_progress') {
+                startBtn.style.display = 'none';
+                hintsBtn.style.display = 'inline-block';
+                validateBtn.style.display = 'inline-block';
+
+                // Show previous feedback if exists
+                if (progress.validation_result) {
+                    const result = JSON.parse(progress.validation_result);
+                    if (result.feedback) {
+                        feedbackDiv.style.display = 'block';
+                        feedbackDiv.className = result.success ? 'mission-feedback success' : 'mission-feedback error';
+                        feedbackDiv.textContent = result.feedback;
+                    }
+                }
+            } else {
+                startBtn.style.display = 'inline-block';
+                hintsBtn.style.display = 'none';
+                validateBtn.style.display = 'none';
+                feedbackDiv.style.display = 'none';
+            }
+
+            // Reset hints visibility
+            document.getElementById('missionHints').style.display = 'none';
+
+            // Show modal
+            document.getElementById('missionModal').style.display = 'flex';
+        }
+
+        // Start mission
+        document.getElementById('startMissionBtn').addEventListener('click', async () => {
+            if (!userId) {
+                alert('Please select a user first!');
+                return;
+            }
+
+            if (!currentMission) return;
+
+            try {
+                const response = await fetch(`/api/missions/${currentMission.id}/progress`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        action: 'start'
+                    })
+                });
+
+                if (response.ok) {
+                    await loadMissionProgress(currentMission.id);
+                    showMissionDetail(currentMission.id);
+                    renderMissionsList();
+                }
+            } catch (error) {
+                console.error('Error starting mission:', error);
+                alert('Failed to start mission');
+            }
+        });
+
+        // Show hints
+        document.getElementById('showHintsBtn').addEventListener('click', () => {
+            const hintsDiv = document.getElementById('missionHints');
+            hintsDiv.style.display = hintsDiv.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Validate mission
+        document.getElementById('validateMissionBtn').addEventListener('click', async () => {
+            if (!userId || !currentMission) return;
+
+            const code = editor.getValue();
+            const feedbackDiv = document.getElementById('missionFeedback');
+
+            // Show loading state
+            feedbackDiv.style.display = 'block';
+            feedbackDiv.className = 'mission-feedback';
+            feedbackDiv.textContent = '🔄 Checking your code...';
+
+            try {
+                const response = await fetch(`/api/missions/${currentMission.id}/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        code: code
+                    })
+                });
+
+                const result = await response.json();
+
+                // Update feedback
+                feedbackDiv.className = result.success ? 'mission-feedback success' : 'mission-feedback error';
+                feedbackDiv.textContent = result.feedback;
+
+                // Reload progress and update UI
+                await loadMissionProgress(currentMission.id);
+                renderMissionsList();
+
+                // If completed, update button states
+                if (result.success) {
+                    setTimeout(() => {
+                        document.getElementById('startMissionBtn').style.display = 'none';
+                        document.getElementById('validateMissionBtn').style.display = 'none';
+                        document.getElementById('showHintsBtn').style.display = 'none';
+                    }, 1000);
+                }
+
+            } catch (error) {
+                console.error('Error validating mission:', error);
+                feedbackDiv.className = 'mission-feedback error';
+                feedbackDiv.textContent = 'Error checking code. Please try again.';
+            }
+        });
+
+        // Open missions overlay
+        document.getElementById('missionsBtn').addEventListener('click', () => {
+            document.getElementById('missionsOverlay').classList.add('active');
+        });
+
+        // Close missions overlay
+        document.getElementById('closeMissionsOverlay').addEventListener('click', () => {
+            document.getElementById('missionsOverlay').classList.remove('active');
+        });
+
+        // Close overlay when clicking outside sidebar
+        document.getElementById('missionsOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'missionsOverlay') {
+                document.getElementById('missionsOverlay').classList.remove('active');
+            }
+        });
+
+        // Close mission modal
+        document.getElementById('closeMissionBtn').addEventListener('click', () => {
+            document.getElementById('missionModal').style.display = 'none';
+        });
+
+        // Load missions when user is selected
+        if (userId) {
+            loadMissions();
+        }
     </script>
 </body>
 

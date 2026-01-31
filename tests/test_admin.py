@@ -2,6 +2,12 @@
 Tests for admin utilities
 """
 import pytest
+import sys
+import os
+
+# Add scripts directory to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts')))
+
 from app import db, User, Game, CodeVersion
 
 

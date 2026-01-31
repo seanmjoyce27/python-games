@@ -5,6 +5,9 @@
 
 PORT=${1:-8443}
 
+# Ensure we're in the project root
+cd "$(dirname "$0")/.."
+
 echo "🔍 Checking for processes on port $PORT..."
 
 # Find processes using the port

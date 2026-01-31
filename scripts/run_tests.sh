@@ -5,6 +5,9 @@
 echo "🧪 Running Python Game Builder Tests"
 echo "======================================"
 
+# Ensure we're in the project root
+cd "$(dirname "$0")/.."
+
 # Activate virtual environment if not already active
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "Activating virtual environment..."

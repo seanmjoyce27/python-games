@@ -516,10 +516,10 @@ This Python Game Builder is:
 
 ## 📞 Quick Reference
 
-**Deploy to Replit**: See [REPLIT_SETUP.md](REPLIT_SETUP.md)
-**Quick Start**: See [QUICKSTART.md](QUICKSTART.md)
-**Learning Path**: See [GAME_PROGRESSION.md](GAME_PROGRESSION.md)
-**Troubleshooting**: See [README.md](README.md#troubleshooting)
+**Deploy to Replit**: See [REPLIT_SETUP.md](../setup/REPLIT_SETUP.md)
+**Quick Start**: See [QUICKSTART.md](../setup/QUICKSTART.md)
+**Learning Path**: See [GAME_PROGRESSION.md](../guides/GAME_PROGRESSION.md)
+**Troubleshooting**: See [README.md](../../README.md#troubleshooting)
 
 ---
 
