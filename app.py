@@ -288,6 +288,9 @@ def restore_version(version_id):
 
 def init_db():
     """Initialize database with sample games"""
+    # Ensure instance directory exists (important for Flask reloader)
+    os.makedirs(instance_path, exist_ok=True)
+
     with app.app_context():
         db.create_all()
 
@@ -698,7 +701,9 @@ drop_speed = 500  # milliseconds between automatic drops
         print("Database initialized with 5 games: Snake, Pong, Space Invaders, Maze, Tetris!")
 
 if __name__ == '__main__':
-    init_db()
+    # Only initialize database in the main process, not in reloader child processes
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        init_db()
     # Replit optimized: bind to 0.0.0.0 for external access
     port = int(os.environ.get('PORT', 8443))
     app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') != 'production')
