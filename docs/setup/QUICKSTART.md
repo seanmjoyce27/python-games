@@ -21,9 +21,9 @@ Click the big green "Run" button at the top!
 ```
 
 That's it! The app will:
-- Install dependencies
+- Install dependencies (including Gunicorn)
 - Create database with 5 games
-- Start web server
+- Start Gunicorn production server
 - Open in browser
 
 ### 3. Create User Accounts

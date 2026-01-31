@@ -44,7 +44,7 @@
                     </div>
                 </div>
                 <div id="gameCanvas">
-                    <canvas id="canvas" width="600" height="600"></canvas>
+                    <canvas id="canvas" width="600" height="700"></canvas>
                     <div id="gameOutput"></div>
                 </div>
                 <div id="gameError" class="error-message"></div>
@@ -256,7 +256,7 @@
                 window.addEventListener('keydown', (e) => {
                     // Don't track keys if user is typing in the code editor
                     const isTypingInEditor = document.activeElement.classList.contains('CodeMirror-code') ||
-                                            document.activeElement.closest('.CodeMirror');
+                        document.activeElement.closest('.CodeMirror');
 
                     if (!isTypingInEditor) {
                         window.keysPressed[e.key] = true;
@@ -270,7 +270,7 @@
 
                 window.addEventListener('keyup', (e) => {
                     const isTypingInEditor = document.activeElement.classList.contains('CodeMirror-code') ||
-                                            document.activeElement.closest('.CodeMirror');
+                        document.activeElement.closest('.CodeMirror');
                     if (!isTypingInEditor) {
                         window.keysPressed[e.key] = false;
                     }
@@ -300,11 +300,11 @@
                 };
 
                 // Keyboard helper functions
-                window.is_key_pressed = function(key) {
+                window.is_key_pressed = function (key) {
                     return window.keysPressed[key] === true;
                 };
 
-                window.get_last_key = function() {
+                window.get_last_key = function () {
                     return window.lastKeyPressed;
                 };
 

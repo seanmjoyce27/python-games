@@ -17,7 +17,8 @@ Use this checklist when deploying to Replit.
 - [ ] Create new Repl or import from GitHub
 - [ ] Verify `.replit` file is present
 - [ ] Verify `replit.nix` file is present
-- [ ] Check `requirements.txt` is complete
+- [ ] Verify `gunicorn.conf.py` file is present
+- [ ] Check `requirements.txt` is complete (includes gunicorn)
 
 ### Environment Variables
 
@@ -37,6 +38,7 @@ Set these in Replit Secrets (Tools → Secrets):
 - [ ] Check Console for errors
 - [ ] Verify database created in `instance/` folder
 - [ ] Verify Snake game initialized
+- [ ] Verify Gunicorn server is running (no dev server warning)
 - [ ] Access the web preview
 
 ## Testing
@@ -147,7 +149,7 @@ Set these in Replit Secrets (Tools → Secrets):
 ### Repl Won't Start
 ```bash
 # In Shell tab
-python app.py
+gunicorn app:app -c gunicorn.conf.py
 # Check error messages
 ```
 

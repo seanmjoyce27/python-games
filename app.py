@@ -1347,7 +1347,7 @@ BLOCK_SIZE = 28
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
 CANVAS_WIDTH = 600
-CANVAS_HEIGHT = 600
+CANVAS_HEIGHT = 700
 
 class Piece:
     def __init__(self, shape, color):

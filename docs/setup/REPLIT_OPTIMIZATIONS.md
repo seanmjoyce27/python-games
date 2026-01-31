@@ -38,15 +38,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 )
 ```
 
-### 3. Network Binding ✅
+### 3. Production Server (Gunicorn) ✅
 
-**Original**: `app.run(debug=True, port=8443)`
-**Replit**: `app.run(host='0.0.0.0', port=port, debug=False)`
+**Original**: Flask development server
+**Replit**: Gunicorn production WSGI server
 
 **Benefits**:
-- Accessible from Replit's external URL
-- Respects PORT environment variable
-- Production-ready configuration
+- Passes Replit health checks reliably
+- Multi-worker support for concurrent requests
+- 30-second timeout for health check compliance
+- Production-ready logging
 
 ### 4. Configuration Files ✅
 
@@ -54,8 +55,15 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 
 1. `.replit` - Replit run configuration
    ```
-   run = "python app.py"
-   modules = ["python-3.11"]
+   [deployment]
+   run = ["sh", "-c", "gunicorn app:app -c gunicorn.conf.py"]
+   ```
+
+2. `gunicorn.conf.py` - Production server configuration
+   ```python
+   bind = "0.0.0.0:8443"
+   workers = 2
+   timeout = 30
    ```
 
 2. `replit.nix` - Python environment
@@ -278,7 +286,7 @@ git push origin main
 1. Check `.replit` file exists
 2. Verify `requirements.txt` is valid
 3. Check Console for errors
-4. Try: Shell → `python app.py`
+4. Try: Shell → `gunicorn app:app -c gunicorn.conf.py`
 
 ### Database Not Persisting
 
@@ -332,7 +340,8 @@ git push origin main
 
 ---
 
-**Version**: 1.0.0 (Replit Optimized)
+**Version**: 1.1.0 (Replit Optimized with Gunicorn)
 **Last Updated**: 2026-01-31
 **Python**: 3.11+
 **Flask**: 3.0.0
+**Gunicorn**: 21.2.0

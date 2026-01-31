@@ -24,8 +24,16 @@ This Python Game Builder is optimized for Replit hosting. Follow these simple st
 The app is pre-configured for Replit with:
 - `.replit` - Run configuration
 - `replit.nix` - Python environment setup
+- `gunicorn.conf.py` - Production server configuration
 - Automatic port binding to `0.0.0.0:8443`
 - Instance folder for SQLite database persistence
+
+### Production Server (Gunicorn)
+
+The deployment uses **Gunicorn**, a production-grade WSGI server:
+- 2 worker processes for handling concurrent requests
+- 30-second timeout for health checks
+- Automatic logging to stdout/stderr
 
 ### Environment Variables (Secrets)
 
@@ -42,10 +50,10 @@ You can set these in Replit's "Secrets" tab:
 ## ▶️ Running the App
 
 Just click the "Run" button in Replit! The app will:
-1. Install dependencies from `requirements.txt`
+1. Install dependencies from `requirements.txt` (including Gunicorn)
 2. Create the SQLite database in `instance/` folder
 3. Initialize with the Snake game template
-4. Start the web server
+4. Start the Gunicorn production server
 
 The app will be accessible at your Replit URL (e.g., `https://your-repl.your-username.repl.co`)
 
@@ -122,9 +130,9 @@ with app.app_context():
 
 ### Repl Won't Start
 
-1. Check that all files are uploaded
+1. Check that all files are uploaded (including `gunicorn.conf.py`)
 2. Verify `.replit` file exists
-3. Try: Tools → Shell, then run `python app.py` manually
+3. Try: Tools → Shell, then run `gunicorn app:app -c gunicorn.conf.py` manually
 
 ### Database Locked Error
 
@@ -185,8 +193,8 @@ For Replit-specific issues:
 - Replit Community: https://ask.replit.com
 
 For app issues:
-- Check `app.py` logs in the Console tab
-- Use Shell to debug: `python app.py`
+- Check logs in the Console tab (Gunicorn logs to stdout)
+- Use Shell to debug: `gunicorn app:app -c gunicorn.conf.py`
 
 ---
 

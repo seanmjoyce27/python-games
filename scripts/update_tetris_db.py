@@ -4,7 +4,7 @@ import os
 # Add parent directory to path to import app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app, db, Game
+from app import app, db, Game, CodeVersion
 
 def update_tetris():
     with app.app_context():
@@ -28,7 +28,7 @@ BLOCK_SIZE = 28
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
 CANVAS_WIDTH = 600
-CANVAS_HEIGHT = 600
+CANVAS_HEIGHT = 700
 
 class Piece:
     def __init__(self, shape, color):
@@ -330,8 +330,19 @@ def draw():
 '''
         
         tetris.template_code = new_code
+        
+        # ALSO update all user code versions to fix the height issue
+        # This is a critical fix for existing saves
+        print("Patching user saves...")
+        versions = CodeVersion.query.filter_by(game_id=tetris.id).all()
+        count = 0
+        for v in versions:
+            if 'CANVAS_HEIGHT = 600' in v.code:
+                v.code = v.code.replace('CANVAS_HEIGHT = 600', 'CANVAS_HEIGHT = 700')
+                count += 1
+        
         db.session.commit()
-        print("Updated Tetris code successfully!")
+        print(f"Updated Tetris code successfully! (Patched {count} user saves)")
 
 if __name__ == "__main__":
     update_tetris()

@@ -27,7 +27,7 @@ A complete web-based Python learning environment designed for kids ages 9-11 to 
 
 Utility scripts are located in the `scripts/` directory.
 
-- **`./scripts/start.sh`**: Start the application (local or Replit)
+- **`./scripts/start.sh`**: Start the application (use `--production` for Gunicorn)
 - **`./scripts/run_tests.sh`**: Run the test suite
 - **`./scripts/stop_app.sh`**: Stop the running application
 - **`./scripts/cleanup_port.sh`**: Free up port 8443 (or others)

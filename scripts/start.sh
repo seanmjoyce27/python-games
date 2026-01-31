@@ -17,5 +17,10 @@ else
 fi
 
 # Start the application
-echo "🚀 Starting Flask server..."
-./venv/bin/python -u app.py
+if [ "$1" = "--production" ] || [ "$FLASK_ENV" = "production" ]; then
+    echo "🚀 Starting Gunicorn production server..."
+    gunicorn app:app -c gunicorn.conf.py
+else
+    echo "🚀 Starting Flask development server..."
+    ./venv/bin/python -u app.py
+fi

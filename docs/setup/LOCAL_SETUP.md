@@ -45,8 +45,11 @@ cp .env.example .env
 python3 -c "import secrets; print(secrets.token_hex(32))"
 # Copy output to SECRET_KEY in .env
 
-# 2. Run the app
+# 2. Run the app (development mode)
 python app.py
+
+# OR run in production mode
+gunicorn app:app -c gunicorn.conf.py
 
 # 3. Open browser
 # http://localhost:8443
@@ -627,8 +630,11 @@ source venv/bin/activate
 cp .env.example .env
 pip install -r requirements.txt
 
-# Run
+# Run (development)
 python app.py
+
+# Run (production)
+gunicorn app:app -c gunicorn.conf.py
 
 # Test
 pytest tests/ -v
