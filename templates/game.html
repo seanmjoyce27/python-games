@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
 </head>
+
 <body>
     <div class="game-container">
         <header class="game-header">
@@ -202,6 +204,49 @@
             errorDiv.textContent = '';
 
             try {
+                // Setup Canvas Context for global access
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // Expose drawing functions to window for Python to access via 'js' module
+                window.clear_screen = function () {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                };
+
+                window.draw_rect = function (x, y, width, height, color) {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x, y, width, height);
+                };
+
+                window.draw_circle = function (x, y, radius, color) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                };
+
+                window.draw_text = function (text, x, y, color, font) {
+                    ctx.fillStyle = color;
+                    ctx.font = font || '20px Arial';
+                    ctx.fillText(text, x, y);
+                };
+
+                // Game Loop State
+                let gameInterval = null;
+                let requestID = null;
+
+                function stopGame() {
+                    if (requestID) {
+                        cancelAnimationFrame(requestID);
+                        requestID = null;
+                    }
+                    window.clear_screen();
+                    document.getElementById('stopBtn').style.display = 'none';
+                    document.getElementById('runBtn').style.display = 'inline-block';
+                }
+
+                document.getElementById('stopBtn').addEventListener('click', stopGame);
+
                 // Capture print statements
                 pyodide.runPython(`
 import sys
@@ -210,22 +255,45 @@ sys.stdout = StringIO()
 `);
 
                 // Run user code
-                const result = pyodide.runPython(code);
+                pyodide.runPython(code);
+
+                // Start Game Loop if 'update' or 'draw' are defined in Python
+                const hasUpdate = pyodide.runPython(" 'update' in globals() ");
+                const hasDraw = pyodide.runPython(" 'draw' in globals() ");
+
+                if (hasUpdate || hasDraw) {
+                    document.getElementById('stopBtn').style.display = 'inline-block';
+                    document.getElementById('runBtn').style.display = 'none';
+
+                    function gameLoop() {
+                        try {
+                            if (hasUpdate) pyodide.runPython("update()");
+                            if (hasDraw) pyodide.runPython("draw()");
+                            requestID = requestAnimationFrame(gameLoop);
+                        } catch (error) {
+                            console.error("Game Loop Error:", error);
+                            stopGame();
+                            errorDiv.textContent = "Runtime Error: " + error.message;
+                        }
+                    }
+
+                    gameLoop();
+                }
 
                 // Get output
                 const stdout = pyodide.runPython('sys.stdout.getvalue()');
 
                 if (stdout) {
                     output.innerHTML = '<pre>' + stdout + '</pre>';
-                } else {
+                } else if (!hasUpdate && !hasDraw) {
+                    // Only show success message if NOT running a game loop
+                    // (otherwise it flashes quickly before loop starts drawing)
                     output.innerHTML = `
                         <p class="success">✓ Code ran successfully!</p>
-                        <p class="info">💡 Tip: Add print() statements to see output here!</p>
-                        <p class="info">Example: <code>print("Hello from Snake!")</code></p>
+                        <p class="info">💡 Tip: Define update() and draw() functions to create a game!</p>
                     `;
                 }
 
-                // TODO: Integrate with canvas for actual game rendering
 
             } catch (error) {
                 errorDiv.textContent = error.message;
@@ -412,4 +480,5 @@ sys.stdout = StringIO()
         });
     </script>
 </body>
+
 </html>

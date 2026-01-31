@@ -306,16 +306,37 @@ def init_db():
 # Use arrow keys to move the snake
 # Eat the red food to grow!
 
+from js import clear_screen, draw_rect, draw_circle, draw_text, document
+import random
+
+# Game settings
+GRID_SIZE = 20
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
+
 class Snake:
     def __init__(self):
-        self.x = 10
-        self.y = 10
-        self.segments = [(10, 10)]
+        self.x = 15
+        self.y = 15
+        self.segments = [(15, 15)]
         self.direction = "right"
-        self.speed = 5  # Try changing this!
+        self.next_direction = "right"
+
+    def change_direction(self, new_direction):
+        """Change direction, but prevent 180-degree turns"""
+        if new_direction == "right" and self.direction != "left":
+            self.next_direction = "right"
+        elif new_direction == "left" and self.direction != "right":
+            self.next_direction = "left"
+        elif new_direction == "up" and self.direction != "down":
+            self.next_direction = "up"
+        elif new_direction == "down" and self.direction != "up":
+            self.next_direction = "down"
 
     def move(self):
         """Move the snake in the current direction"""
+        self.direction = self.next_direction
+
         if self.direction == "right":
             self.x += 1
         elif self.direction == "left":
@@ -334,11 +355,132 @@ class Snake:
         tail = self.segments[-1]
         self.segments.append(tail)
 
-# Create the snake
-snake = Snake()
+    def check_collision(self):
+        """Check if snake hit wall or itself"""
+        # Wall collision
+        if self.x < 0 or self.x >= CANVAS_WIDTH // GRID_SIZE:
+            return True
+        if self.y < 0 or self.y >= CANVAS_HEIGHT // GRID_SIZE:
+            return True
 
-# TODO: Try changing the speed!
-# TODO: Try changing the starting position!
+        # Self collision
+        if (self.x, self.y) in self.segments[1:]:
+            return True
+
+        return False
+
+class Food:
+    def __init__(self):
+        self.x = random.randint(0, (CANVAS_WIDTH // GRID_SIZE) - 1)
+        self.y = random.randint(0, (CANVAS_HEIGHT // GRID_SIZE) - 1)
+
+    def respawn(self, snake_segments):
+        """Place food at random position not on snake"""
+        while True:
+            self.x = random.randint(0, (CANVAS_WIDTH // GRID_SIZE) - 1)
+            self.y = random.randint(0, (CANVAS_HEIGHT // GRID_SIZE) - 1)
+            if (self.x, self.y) not in snake_segments:
+                break
+
+# Game state
+snake = Snake()
+food = Food()
+score = 0
+frame_count = 0
+game_over = False
+
+# Handle keyboard input
+def handle_keys():
+    """Check which keys are pressed"""
+    if document.querySelector("#canvas"):
+        # Arrow keys
+        if hasattr(document, 'lastKey'):
+            key = document.lastKey
+            if key == "ArrowRight":
+                snake.change_direction("right")
+            elif key == "ArrowLeft":
+                snake.change_direction("left")
+            elif key == "ArrowUp":
+                snake.change_direction("up")
+            elif key == "ArrowDown":
+                snake.change_direction("down")
+
+def update():
+    """Update game logic (called every frame)"""
+    global frame_count, score, game_over
+
+    if game_over:
+        return
+
+    # Move snake every 6 frames (adjust for speed)
+    frame_count += 1
+    if frame_count % 6 != 0:
+        return
+
+    # Handle input
+    handle_keys()
+
+    # Move snake
+    snake.move()
+
+    # Check collision
+    if snake.check_collision():
+        game_over = True
+        return
+
+    # Check if snake ate food
+    if snake.x == food.x and snake.y == food.y:
+        snake.grow()
+        food.respawn(snake.segments)
+        score += 10
+
+def draw():
+    """Draw everything (called every frame)"""
+    # Clear screen
+    clear_screen()
+
+    # Draw background
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Draw grid (optional, for visual reference)
+    for i in range(0, CANVAS_WIDTH, GRID_SIZE):
+        draw_rect(i, 0, 1, CANVAS_HEIGHT, "#2a2a2a")
+    for i in range(0, CANVAS_HEIGHT, GRID_SIZE):
+        draw_rect(0, i, CANVAS_WIDTH, 1, "#2a2a2a")
+
+    # Draw food
+    draw_rect(
+        food.x * GRID_SIZE + 2,
+        food.y * GRID_SIZE + 2,
+        GRID_SIZE - 4,
+        GRID_SIZE - 4,
+        "#ff4444"
+    )
+
+    # Draw snake
+    for i, (seg_x, seg_y) in enumerate(snake.segments):
+        color = "#44ff44" if i == 0 else "#33cc33"  # Head is brighter
+        draw_rect(
+            seg_x * GRID_SIZE + 1,
+            seg_y * GRID_SIZE + 1,
+            GRID_SIZE - 2,
+            GRID_SIZE - 2,
+            color
+        )
+
+    # Draw score
+    draw_text(f"Score: {score}", 10, 30, "#ffffff", "24px Arial")
+
+    # Draw game over message
+    if game_over:
+        draw_text("GAME OVER!", 200, 300, "#ff4444", "48px Arial")
+        draw_text("Refresh to play again", 210, 350, "#ffffff", "24px Arial")
+
+# Setup keyboard event listener
+document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
+
+# TODO: Try changing the speed (change the % 6 in update function)
+# TODO: Try changing the colors of the snake or food
 # TODO: Can you make the snake start longer?
 '''
 
@@ -355,36 +497,37 @@ snake = Snake()
 # Player 1: W/S keys | Player 2: Up/Down arrows
 # First to 5 points wins!
 
+from js import clear_screen, draw_rect, draw_circle, draw_text, document
+
+# Game settings
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
+WINNING_SCORE = 5
+
 class Paddle:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.width = 10
-        self.height = 60
+        self.width = 15
+        self.height = 80
         self.speed = 8  # Try changing paddle speed!
         self.score = 0
 
     def move_up(self):
         """Move paddle up"""
         self.y -= self.speed
-        # Keep on screen
         if self.y < 0:
             self.y = 0
 
     def move_down(self):
         """Move paddle down"""
         self.y += self.speed
-        # Keep on screen (assuming 400 height)
-        if self.y > 340:
-            self.y = 340
+        if self.y > CANVAS_HEIGHT - self.height:
+            self.y = CANVAS_HEIGHT - self.height
 
 class Ball:
     def __init__(self):
-        self.x = 300  # Center of 600px canvas
-        self.y = 200  # Center of 400px canvas
-        self.size = 10
-        self.speed_x = 5  # Try changing ball speed!
-        self.speed_y = 5
+        self.reset()
 
     def move(self):
         """Move the ball"""
@@ -399,25 +542,122 @@ class Ball:
         """Bounce ball horizontally (hit paddle)"""
         self.speed_x = -self.speed_x
         # Speed up slightly each hit!
-        self.speed_x *= 1.05
-        self.speed_y *= 1.05
+        if abs(self.speed_x) < 15:  # Max speed cap
+            self.speed_x *= 1.1
+            self.speed_y *= 1.1
 
     def reset(self):
         """Reset ball to center"""
-        self.x = 300
-        self.y = 200
-        self.speed_x = 5 if self.speed_x > 0 else -5
-        self.speed_y = 5
+        self.x = CANVAS_WIDTH // 2
+        self.y = CANVAS_HEIGHT // 2
+        self.radius = 8
+        import random
+        self.speed_x = 5 if random.random() > 0.5 else -5
+        self.speed_y = random.uniform(-4, 4)
 
 # Create players and ball
-player1 = Paddle(20, 170)   # Left paddle
-player2 = Paddle(570, 170)  # Right paddle
+player1 = Paddle(30, CANVAS_HEIGHT // 2 - 40)    # Left paddle
+player2 = Paddle(CANVAS_WIDTH - 45, CANVAS_HEIGHT // 2 - 40)  # Right paddle
 ball = Ball()
+game_over = False
+winner = ""
 
-# TODO: Make paddles bigger or smaller
-# TODO: Make the ball faster
-# TODO: Change winning score to 10
-# TODO: Add a power-up that speeds up your paddle!
+def update():
+    """Update game logic (called every frame)"""
+    global game_over, winner
+
+    if game_over:
+        return
+
+    # Handle player 1 controls (W/S)
+    if hasattr(document, 'lastKey'):
+        key = document.lastKey
+        if key in ['w', 'W']:
+            player1.move_up()
+        elif key in ['s', 'S']:
+            player1.move_down()
+
+        # Handle player 2 controls (Arrow keys)
+        if key == 'ArrowUp':
+            player2.move_up()
+        elif key == 'ArrowDown':
+            player2.move_down()
+
+    # Move ball
+    ball.move()
+
+    # Ball collision with top/bottom
+    if ball.y - ball.radius <= 0 or ball.y + ball.radius >= CANVAS_HEIGHT:
+        ball.bounce_y()
+
+    # Ball collision with paddles
+    # Left paddle (player 1)
+    if (ball.x - ball.radius <= player1.x + player1.width and
+        player1.y <= ball.y <= player1.y + player1.height and
+        ball.speed_x < 0):
+        ball.bounce_x()
+
+    # Right paddle (player 2)
+    if (ball.x + ball.radius >= player2.x and
+        player2.y <= ball.y <= player2.y + player2.height and
+        ball.speed_x > 0):
+        ball.bounce_x()
+
+    # Ball out of bounds (scoring)
+    if ball.x < 0:
+        player2.score += 1
+        ball.reset()
+    elif ball.x > CANVAS_WIDTH:
+        player1.score += 1
+        ball.reset()
+
+    # Check for winner
+    if player1.score >= WINNING_SCORE:
+        game_over = True
+        winner = "Player 1"
+    elif player2.score >= WINNING_SCORE:
+        game_over = True
+        winner = "Player 2"
+
+def draw():
+    """Draw everything (called every frame)"""
+    # Clear screen
+    clear_screen()
+
+    # Draw background
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Draw center line
+    for i in range(0, CANVAS_HEIGHT, 20):
+        draw_rect(CANVAS_WIDTH // 2 - 2, i, 4, 10, "#444444")
+
+    # Draw paddles
+    draw_rect(player1.x, player1.y, player1.width, player1.height, "#4444ff")
+    draw_rect(player2.x, player2.y, player2.width, player2.height, "#ff4444")
+
+    # Draw ball
+    draw_circle(ball.x, ball.y, ball.radius, "#ffffff")
+
+    # Draw scores
+    draw_text(str(player1.score), CANVAS_WIDTH // 2 - 50, 50, "#ffffff", "48px Arial")
+    draw_text(str(player2.score), CANVAS_WIDTH // 2 + 30, 50, "#ffffff", "48px Arial")
+
+    # Draw player labels
+    draw_text("P1 (W/S)", 10, CANVAS_HEIGHT - 20, "#4444ff", "16px Arial")
+    draw_text("P2 (↑/↓)", CANVAS_WIDTH - 100, CANVAS_HEIGHT - 20, "#ff4444", "16px Arial")
+
+    # Draw game over message
+    if game_over:
+        draw_text(f"{winner} WINS!", 180, CANVAS_HEIGHT // 2, "#44ff44", "48px Arial")
+        draw_text("Refresh to play again", 200, CANVAS_HEIGHT // 2 + 50, "#ffffff", "20px Arial")
+
+# Setup keyboard event listener
+document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
+
+# TODO: Make paddles bigger or smaller (change height/width)
+# TODO: Make the ball faster (change initial speed_x/speed_y)
+# TODO: Change winning score to 10 (change WINNING_SCORE)
+# TODO: Add sound effects when ball hits paddle!
 '''
 
         pong = Game(
@@ -433,14 +673,22 @@ ball = Ball()
 # Arrow keys to move, SPACE to shoot!
 # Destroy all aliens before they reach the bottom!
 
+from js import clear_screen, draw_rect, draw_text, document
+
+# Game settings
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
+
 class Player:
     def __init__(self):
-        self.x = 300  # Center of screen
-        self.y = 550  # Near bottom
+        self.x = CANVAS_WIDTH // 2 - 20
+        self.y = CANVAS_HEIGHT - 80
         self.width = 40
         self.height = 30
         self.speed = 7  # Try changing this!
         self.lives = 3
+        self.can_shoot = True
+        self.shoot_cooldown = 0
 
     def move_left(self):
         self.x -= self.speed
@@ -449,61 +697,185 @@ class Player:
 
     def move_right(self):
         self.x += self.speed
-        if self.x > 560:  # Keep on 600px screen
-            self.x = 560
+        if self.x > CANVAS_WIDTH - self.width:
+            self.x = CANVAS_WIDTH - self.width
 
 class Bullet:
     def __init__(self, x, y):
         self.x = x
         self.y = y
         self.width = 4
-        self.height = 10
-        self.speed = 10  # Try making bullets faster!
+        self.height = 12
+        self.speed = 8
         self.active = True
 
     def move(self):
         self.y -= self.speed
-        # Remove if off screen
         if self.y < 0:
             self.active = False
 
 class Alien:
-    def __init__(self, x, y):
+    def __init__(self, x, y, row):
         self.x = x
         self.y = y
         self.width = 30
-        self.height = 30
-        self.speed = 2  # Alien movement speed
+        self.height = 25
         self.alive = True
-        self.points = 10  # Try different point values!
-
-    def move_down(self):
-        """Aliens move down when hitting edge"""
-        self.y += 20
+        # Different point values for different rows
+        self.points = 30 - (row * 5)
 
 # Create player
 player = Player()
 
-# Create grid of aliens (5 rows x 8 columns)
+# Create grid of aliens (5 rows x 10 columns)
 aliens = []
 for row in range(5):
-    for col in range(8):
-        x = 50 + col * 60  # Space them out
-        y = 50 + row * 50
-        aliens.append(Alien(x, y))
+    for col in range(10):
+        x = 40 + col * 50
+        y = 50 + row * 40
+        aliens.append(Alien(x, y, row))
 
 # List to hold bullets
 bullets = []
 
+# Alien movement
+alien_direction = 1  # 1 = right, -1 = left
+alien_speed = 1
+frame_count = 0
+
 # Game state
 score = 0
 game_over = False
+game_won = False
 
-# TODO: Add more alien rows
-# TODO: Make aliens move faster
-# TODO: Add different alien types worth more points
-# TODO: Give player more lives
-# TODO: Add a special weapon that shoots 3 bullets!
+def check_collision(bullet, alien):
+    """Check if bullet hits alien"""
+    return (bullet.x < alien.x + alien.width and
+            bullet.x + bullet.width > alien.x and
+            bullet.y < alien.y + alien.height and
+            bullet.y + bullet.height > alien.y)
+
+def update():
+    """Update game logic"""
+    global alien_direction, frame_count, score, game_over, game_won
+
+    if game_over or game_won:
+        return
+
+    frame_count += 1
+
+    # Handle player movement
+    if hasattr(document, 'lastKey'):
+        key = document.lastKey
+        if key == 'ArrowLeft':
+            player.move_left()
+        elif key == 'ArrowRight':
+            player.move_right()
+        elif key == ' ' and player.can_shoot:
+            # Shoot bullet
+            bullets.append(Bullet(player.x + player.width // 2 - 2, player.y))
+            player.can_shoot = False
+            player.shoot_cooldown = 15
+
+    # Handle shoot cooldown
+    if player.shoot_cooldown > 0:
+        player.shoot_cooldown -= 1
+    else:
+        player.can_shoot = True
+
+    # Move bullets
+    for bullet in bullets:
+        bullet.move()
+
+    # Remove inactive bullets
+    bullets[:] = [b for b in bullets if b.active]
+
+    # Move aliens (every 3 frames)
+    if frame_count % 3 == 0:
+        # Check if any alien hit edge
+        hit_edge = False
+        for alien in aliens:
+            if alien.alive:
+                if (alien.x <= 0 and alien_direction == -1) or \
+                   (alien.x >= CANVAS_WIDTH - alien.width and alien_direction == 1):
+                    hit_edge = True
+                    break
+
+        if hit_edge:
+            # Change direction and move down
+            alien_direction *= -1
+            for alien in aliens:
+                alien.y += 20
+        else:
+            # Move sideways
+            for alien in aliens:
+                alien.x += alien_direction * alien_speed
+
+    # Check bullet-alien collisions
+    for bullet in bullets[:]:
+        for alien in aliens:
+            if alien.alive and bullet.active and check_collision(bullet, alien):
+                alien.alive = False
+                bullet.active = False
+                score += alien.points
+                break
+
+    # Check if aliens reached player
+    for alien in aliens:
+        if alien.alive and alien.y + alien.height >= player.y:
+            game_over = True
+            return
+
+    # Check win condition
+    if all(not alien.alive for alien in aliens):
+        game_won = True
+
+def draw():
+    """Draw everything"""
+    # Clear screen
+    clear_screen()
+
+    # Draw background
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#0a0a2e")
+
+    # Draw player
+    draw_rect(player.x, player.y, player.width, player.height, "#44ff44")
+
+    # Draw aliens
+    for alien in aliens:
+        if alien.alive:
+            # Different colors for different rows
+            colors = ["#ff4444", "#ff8844", "#ffcc44", "#88ff44", "#4488ff"]
+            row = int((alien.y - 50) / 40)
+            color = colors[min(row, 4)]
+            draw_rect(alien.x, alien.y, alien.width, alien.height, color)
+
+    # Draw bullets
+    for bullet in bullets:
+        if bullet.active:
+            draw_rect(bullet.x, bullet.y, bullet.width, bullet.height, "#ffffff")
+
+    # Draw score and lives
+    draw_text(f"Score: {score}", 10, 25, "#ffffff", "20px Arial")
+    draw_text(f"Lives: {player.lives}", CANVAS_WIDTH - 100, 25, "#ffffff", "20px Arial")
+
+    # Draw game over message
+    if game_over:
+        draw_text("GAME OVER!", 180, CANVAS_HEIGHT // 2, "#ff4444", "52px Arial")
+        draw_text("Aliens reached Earth!", 180, CANVAS_HEIGHT // 2 + 60, "#ffffff", "24px Arial")
+
+    # Draw win message
+    if game_won:
+        draw_text("YOU WIN!", 200, CANVAS_HEIGHT // 2, "#44ff44", "52px Arial")
+        draw_text(f"Final Score: {score}", 200, CANVAS_HEIGHT // 2 + 60, "#ffffff", "28px Arial")
+
+# Setup keyboard
+document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
+
+# TODO: Add more alien rows (change range(5) to range(7))
+# TODO: Make aliens move faster (change alien_speed)
+# TODO: Add power-ups that drop from defeated aliens
+# TODO: Add shields for the player to hide behind
 '''
 
         space_invaders = Game(
@@ -519,47 +891,60 @@ game_over = False
 # Arrow keys to move
 # Find the exit without hitting walls!
 
+from js import clear_screen, draw_rect, draw_text, document
+
+# Game settings
+CELL_SIZE = 50
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
+
 class Player:
     def __init__(self):
         self.x = 1  # Grid position
         self.y = 1
-        self.size = 30  # Size in pixels
-        self.moves = 0  # Count moves to exit
+        self.moves = 0
+        self.last_move = 0  # Prevent too-fast movement
 
-    def move(self, dx, dy, maze):
-        """Try to move in direction, check for walls"""
+    def can_move(self, dx, dy, maze_grid):
+        """Check if move is valid"""
         new_x = self.x + dx
         new_y = self.y + dy
 
-        # Check if move is valid (not a wall)
-        if maze[new_y][new_x] != 1:
-            self.x = new_x
-            self.y = new_y
+        # Check bounds
+        if new_y < 0 or new_y >= len(maze_grid):
+            return False
+        if new_x < 0 or new_x >= len(maze_grid[0]):
+            return False
+
+        # Check if not a wall
+        return maze_grid[new_y][new_x] != 1
+
+    def move(self, dx, dy, maze_grid):
+        """Move if valid"""
+        if self.can_move(dx, dy, maze_grid):
+            self.x += dx
+            self.y += dy
             self.moves += 1
             return True
         return False
 
 class Maze:
     def __init__(self):
-        # 0 = path, 1 = wall, 2 = exit
-        # Try creating your own maze!
+        # 0 = path, 1 = wall, 2 = exit, 3 = treasure
         self.grid = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-            [1, 0, 1, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-            [1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1, 2, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1],
+            [1, 3, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ]
-        self.cell_size = 40  # Size of each cell
-
-    def check_win(self, player):
-        """Check if player reached the exit"""
-        return self.grid[player.y][player.x] == 2
 
 # Create game objects
 player = Player()
@@ -567,13 +952,94 @@ maze = Maze()
 
 # Game state
 won = False
-best_moves = None  # Track fastest solution
+treasures_collected = 0
+total_treasures = sum(row.count(3) for row in maze.grid)
+frame_count = 0
 
-# TODO: Create a bigger maze (15x15)
-# TODO: Add treasures to collect (value 3)
-# TODO: Add moving enemies to avoid
-# TODO: Make multiple levels
-# TODO: Add a timer - can you solve it in 30 seconds?
+def update():
+    """Update game logic"""
+    global won, treasures_collected, frame_count
+
+    if won:
+        return
+
+    frame_count += 1
+
+    # Handle movement with delay to prevent too-fast movement
+    if frame_count % 8 != 0:  # Only check input every 8 frames
+        return
+
+    if hasattr(document, 'lastKey'):
+        key = document.lastKey
+        moved = False
+
+        if key == 'ArrowUp':
+            moved = player.move(0, -1, maze.grid)
+        elif key == 'ArrowDown':
+            moved = player.move(0, 1, maze.grid)
+        elif key == 'ArrowLeft':
+            moved = player.move(-1, 0, maze.grid)
+        elif key == 'ArrowRight':
+            moved = player.move(1, 0, maze.grid)
+
+        if moved:
+            # Check for treasure
+            if maze.grid[player.y][player.x] == 3:
+                treasures_collected += 1
+                maze.grid[player.y][player.x] = 0  # Remove treasure
+
+            # Check for exit
+            if maze.grid[player.y][player.x] == 2:
+                won = True
+
+def draw():
+    """Draw everything"""
+    # Clear screen
+    clear_screen()
+
+    # Draw background
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Draw maze
+    for y in range(len(maze.grid)):
+        for x in range(len(maze.grid[y])):
+            cell_x = x * CELL_SIZE
+            cell_y = y * CELL_SIZE
+
+            cell_type = maze.grid[y][x]
+
+            if cell_type == 1:  # Wall
+                draw_rect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, "#4a4a4a")
+            elif cell_type == 0:  # Path
+                draw_rect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, "#2a2a2a")
+            elif cell_type == 2:  # Exit
+                draw_rect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, "#44ff44")
+                draw_text("EXIT", cell_x + 5, cell_y + 30, "#000000", "16px Arial")
+            elif cell_type == 3:  # Treasure
+                draw_rect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, "#2a2a2a")
+                draw_rect(cell_x + 10, cell_y + 10, CELL_SIZE - 20, CELL_SIZE - 20, "#ffd700")
+
+    # Draw player
+    player_x = player.x * CELL_SIZE
+    player_y = player.y * CELL_SIZE
+    draw_rect(player_x + 8, player_y + 8, CELL_SIZE - 16, CELL_SIZE - 16, "#4444ff")
+
+    # Draw stats
+    draw_text(f"Moves: {player.moves}", 10, CANVAS_HEIGHT - 20, "#ffffff", "20px Arial")
+    draw_text(f"Treasures: {treasures_collected}/{total_treasures}", 200, CANVAS_HEIGHT - 20, "#ffd700", "20px Arial")
+
+    # Draw win message
+    if won:
+        draw_rect(100, 250, 400, 100, "#000000")
+        draw_text("YOU WIN!", 180, 300, "#44ff44", "48px Arial")
+        draw_text(f"Moves: {player.moves}", 220, 330, "#ffffff", "24px Arial")
+
+# Setup keyboard
+document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
+
+# TODO: Create a bigger maze (add more rows/columns)
+# TODO: Add more treasures to collect
+# TODO: Try making a harder maze pattern
 '''
 
         maze = Game(
@@ -589,19 +1055,31 @@ best_moves = None  # Track fastest solution
 # Arrow keys: Left/Right to move, Up to rotate, Down to drop faster
 # Clear lines to score points!
 
+from js import clear_screen, draw_rect, draw_text, document
+import random
+
+# Game settings
+BLOCK_SIZE = 28
+BOARD_WIDTH = 10
+BOARD_HEIGHT = 20
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
+
 class Piece:
-    def __init__(self, shape):
-        self.shape = shape  # 2D array of blocks
-        self.x = 3  # Start in middle-ish
+    def __init__(self, shape, color):
+        self.shape = [row[:] for row in shape]  # Copy shape
+        self.color = color
+        self.x = BOARD_WIDTH // 2 - len(shape[0]) // 2
         self.y = 0
-        self.rotation = 0
 
     def rotate(self):
         """Rotate piece clockwise"""
-        # This rotates a 2D array 90 degrees
         self.shape = [[self.shape[y][x]
                       for y in range(len(self.shape)-1, -1, -1)]
                       for x in range(len(self.shape[0]))]
+
+    def move_down(self):
+        self.y += 1
 
     def move_left(self):
         self.x -= 1
@@ -609,27 +1087,28 @@ class Piece:
     def move_right(self):
         self.x += 1
 
-    def move_down(self):
-        self.y += 1
+    def move_up(self):
+        self.y -= 1
 
 class Board:
     def __init__(self):
-        self.width = 10
-        self.height = 20
-        # 0 = empty, 1 = filled
+        self.width = BOARD_WIDTH
+        self.height = BOARD_HEIGHT
         self.grid = [[0 for _ in range(self.width)]
                      for _ in range(self.height)]
+        self.colors = [["#000000" for _ in range(self.width)]
+                      for _ in range(self.height)]
         self.score = 0
+        self.lines_cleared = 0
 
     def check_collision(self, piece):
         """Check if piece collides with board or other pieces"""
         for y, row in enumerate(piece.shape):
             for x, cell in enumerate(row):
-                if cell:  # If this part of piece exists
+                if cell:
                     new_x = piece.x + x
                     new_y = piece.y + y
 
-                    # Check boundaries
                     if new_x < 0 or new_x >= self.width:
                         return True
                     if new_y >= self.height:
@@ -642,52 +1121,207 @@ class Board:
         """Lock piece into board"""
         for y, row in enumerate(piece.shape):
             for x, cell in enumerate(row):
-                if cell:
+                if cell and piece.y + y >= 0:
                     self.grid[piece.y + y][piece.x + x] = 1
+                    self.colors[piece.y + y][piece.x + x] = piece.color
 
-    def clear_lines(self):
+    def clear_full_lines(self):
         """Remove completed lines and award points"""
-        lines_cleared = 0
-        y = self.height - 1
+        lines_to_clear = []
 
-        while y >= 0:
-            if all(self.grid[y]):  # Line is full
-                del self.grid[y]
-                self.grid.insert(0, [0] * self.width)
-                lines_cleared += 1
-            else:
-                y -= 1
+        for y in range(self.height):
+            if all(self.grid[y]):
+                lines_to_clear.append(y)
 
-        # Score: 100, 300, 500, 800 for 1,2,3,4 lines
+        for y in lines_to_clear:
+            del self.grid[y]
+            del self.colors[y]
+            self.grid.insert(0, [0] * self.width)
+            self.colors.insert(0, ["#000000"] * self.width)
+
+        cleared = len(lines_to_clear)
+        self.lines_cleared += cleared
+
+        # Score based on number of lines cleared at once
         scores = [0, 100, 300, 500, 800]
-        self.score += scores[min(lines_cleared, 4)]
+        self.score += scores[min(cleared, 4)]
 
-        return lines_cleared
+        return cleared
 
-# Tetris piece shapes (the famous tetrominoes!)
+# Tetris shapes and colors
 SHAPES = [
-    [[1, 1, 1, 1]],  # I piece
-    [[1, 1], [1, 1]],  # O piece (square)
-    [[0, 1, 0], [1, 1, 1]],  # T piece
-    [[1, 1, 0], [0, 1, 1]],  # S piece
-    [[0, 1, 1], [1, 1, 0]],  # Z piece
-    [[1, 1, 1], [1, 0, 0]],  # L piece
-    [[1, 1, 1], [0, 0, 1]],  # J piece
+    ([[1, 1, 1, 1]], "#00f0f0"),  # I - cyan
+    ([[1, 1], [1, 1]], "#f0f000"),  # O - yellow
+    ([[0, 1, 0], [1, 1, 1]], "#a000f0"),  # T - purple
+    ([[1, 1, 0], [0, 1, 1]], "#00f000"),  # S - green
+    ([[0, 1, 1], [1, 1, 0]], "#f00000"),  # Z - red
+    ([[1, 1, 1], [1, 0, 0]], "#f0a000"),  # L - orange
+    ([[1, 1, 1], [0, 0, 1]], "#0000f0"),  # J - blue
 ]
 
-# Create board
+def create_new_piece():
+    """Create a random piece"""
+    shape, color = random.choice(SHAPES)
+    return Piece(shape, color)
+
+# Create board and first piece
 board = Board()
+current_piece = create_new_piece()
+next_piece = create_new_piece()
 
 # Game state
 game_over = False
-drop_speed = 500  # milliseconds between automatic drops
+drop_counter = 0
+drop_speed = 30  # Frames between automatic drops
+fast_drop = False
+move_delay = 0
+last_key = None
 
-# TODO: Add a "next piece" preview
-# TODO: Make game faster as score increases
-# TODO: Add different colors for each piece type
-# TODO: Track high score
-# TODO: Add a "hold piece" feature
-# TODO: Show ghost piece (where it will land)
+def update():
+    """Update game logic"""
+    global current_piece, next_piece, game_over, drop_counter, fast_drop, move_delay, last_key
+
+    if game_over:
+        return
+
+    # Handle keyboard input with delay
+    if hasattr(document, 'lastKey'):
+        key = document.lastKey
+
+        # Only process if key changed or enough time passed
+        if key != last_key or move_delay <= 0:
+            if key == 'ArrowLeft':
+                current_piece.move_left()
+                if board.check_collision(current_piece):
+                    current_piece.move_right()
+                move_delay = 5
+                last_key = key
+
+            elif key == 'ArrowRight':
+                current_piece.move_right()
+                if board.check_collision(current_piece):
+                    current_piece.move_left()
+                move_delay = 5
+                last_key = key
+
+            elif key == 'ArrowUp':
+                current_piece.rotate()
+                if board.check_collision(current_piece):
+                    # Rotate back if collision
+                    for _ in range(3):
+                        current_piece.rotate()
+                move_delay = 10
+                last_key = key
+
+            elif key == 'ArrowDown':
+                fast_drop = True
+                last_key = key
+            else:
+                fast_drop = False
+                if key != last_key:
+                    last_key = None
+
+    if move_delay > 0:
+        move_delay -= 1
+
+    # Auto drop
+    drop_counter += 1
+    current_drop_speed = 3 if fast_drop else drop_speed
+
+    if drop_counter >= current_drop_speed:
+        drop_counter = 0
+        current_piece.move_down()
+
+        if board.check_collision(current_piece):
+            current_piece.move_up()  # Move back up
+            current_piece.y -= 1
+            board.lock_piece(current_piece)
+            board.clear_full_lines()
+
+            # Create new piece
+            current_piece = next_piece
+            next_piece = create_new_piece()
+
+            # Check game over
+            if board.check_collision(current_piece):
+                game_over = True
+
+def draw():
+    """Draw everything"""
+    # Clear screen
+    clear_screen()
+
+    # Draw background
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Board offset to center it
+    offset_x = 100
+    offset_y = 50
+
+    # Draw board border
+    draw_rect(offset_x - 5, offset_y - 5, BOARD_WIDTH * BLOCK_SIZE + 10, BOARD_HEIGHT * BLOCK_SIZE + 10, "#444444")
+    draw_rect(offset_x, offset_y, BOARD_WIDTH * BLOCK_SIZE, BOARD_HEIGHT * BLOCK_SIZE, "#000000")
+
+    # Draw locked pieces
+    for y in range(BOARD_HEIGHT):
+        for x in range(BOARD_WIDTH):
+            if board.grid[y][x]:
+                draw_rect(
+                    offset_x + x * BLOCK_SIZE + 1,
+                    offset_y + y * BLOCK_SIZE + 1,
+                    BLOCK_SIZE - 2,
+                    BLOCK_SIZE - 2,
+                    board.colors[y][x]
+                )
+
+    # Draw current piece
+    if not game_over:
+        for y, row in enumerate(current_piece.shape):
+            for x, cell in enumerate(row):
+                if cell and current_piece.y + y >= 0:
+                    draw_rect(
+                        offset_x + (current_piece.x + x) * BLOCK_SIZE + 1,
+                        offset_y + (current_piece.y + y) * BLOCK_SIZE + 1,
+                        BLOCK_SIZE - 2,
+                        BLOCK_SIZE - 2,
+                        current_piece.color
+                    )
+
+    # Draw next piece preview
+    draw_text("NEXT:", offset_x + BOARD_WIDTH * BLOCK_SIZE + 30, offset_y + 30, "#ffffff", "20px Arial")
+    for y, row in enumerate(next_piece.shape):
+        for x, cell in enumerate(row):
+            if cell:
+                draw_rect(
+                    offset_x + BOARD_WIDTH * BLOCK_SIZE + 30 + x * 20,
+                    offset_y + 50 + y * 20,
+                    18,
+                    18,
+                    next_piece.color
+                )
+
+    # Draw score
+    draw_text(f"Score: {board.score}", offset_x + BOARD_WIDTH * BLOCK_SIZE + 30, offset_y + 150, "#ffffff", "18px Arial")
+    draw_text(f"Lines: {board.lines_cleared}", offset_x + BOARD_WIDTH * BLOCK_SIZE + 30, offset_y + 180, "#ffffff", "18px Arial")
+
+    # Controls help
+    draw_text("← → : Move", 10, CANVAS_HEIGHT - 60, "#888888", "14px Arial")
+    draw_text("↑ : Rotate", 10, CANVAS_HEIGHT - 40, "#888888", "14px Arial")
+    draw_text("↓ : Drop Fast", 10, CANVAS_HEIGHT - 20, "#888888", "14px Arial")
+
+    # Draw game over
+    if game_over:
+        draw_rect(offset_x, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 - 40, BOARD_WIDTH * BLOCK_SIZE, 80, "#000000")
+        draw_text("GAME OVER", offset_x + 30, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2, "#ff4444", "32px Arial")
+        draw_text("Refresh to play again", offset_x + 10, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 + 35, "#ffffff", "16px Arial")
+
+# Setup keyboard
+document.addEventListener("keydown", lambda e: setattr(document, 'lastKey', e.key))
+document.addEventListener("keyup", lambda e: setattr(document, 'lastKey', None) if document.lastKey == e.key else None)
+
+# TODO: Make game faster as score increases (reduce drop_speed)
+# TODO: Add sound effects for line clears
+# TODO: Track and display high score
 '''
 
         tetris = Game(
