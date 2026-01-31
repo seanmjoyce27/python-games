@@ -15,9 +15,10 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 instance_path = os.path.join(basedir, 'instance')
 os.makedirs(instance_path, exist_ok=True)
 
+db_path = os.path.join(instance_path, "python_games.db")
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
     'DATABASE_URL',
-    f'sqlite:///{os.path.join(instance_path, "python_games.db")}'
+    f'sqlite:///{db_path}'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -713,19 +714,22 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Only initialize database in the main process, not in reloader child processes
+    # Initialize database before starting server
+    # Only run in the parent process (when WERKZEUG_RUN_MAIN is not set)
+    # The reloader child process will inherit the already-created database
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         init_db()
 
     # Replit optimized: bind to 0.0.0.0 for external access
     port = int(os.environ.get('PORT', 8443))
+    is_debug = os.environ.get('FLASK_ENV') != 'production'
 
     try:
         app.run(
             host='0.0.0.0',
             port=port,
-            debug=os.environ.get('FLASK_ENV') != 'production',
-            use_reloader=True,
+            debug=is_debug,
+            use_reloader=is_debug,  # Only use reloader in debug mode
             threaded=True  # Enable threaded mode for better port cleanup
         )
     except KeyboardInterrupt:
