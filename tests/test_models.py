@@ -72,8 +72,8 @@ def test_code_version_creation(app, test_user, test_game):
 def test_code_version_relationship(app, test_user, test_game):
     """Test relationships between models"""
     with app.app_context():
-        user = User.query.get(test_user)
-        game = Game.query.get(test_game)
+        user = db.session.get(User, test_user)
+        game = db.session.get(Game, test_game)
 
         version = CodeVersion(
             user_id=user.id,

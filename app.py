@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timezone
 import difflib
 import os
 
@@ -27,7 +27,7 @@ CORS(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     code_versions = db.relationship('CodeVersion', backref='user', lazy=True, cascade='all, delete-orphan')
 
 class Game(db.Model):
@@ -36,7 +36,7 @@ class Game(db.Model):
     display_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     template_code = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class CodeVersion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,7 +45,7 @@ class CodeVersion(db.Model):
     code = db.Column(db.Text, nullable=False)
     message = db.Column(db.String(200))  # Optional commit message
     is_checkpoint = db.Column(db.Boolean, default=False)  # Manual saves
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     game = db.relationship('Game', backref='versions')
 
@@ -60,7 +60,9 @@ def index():
 @app.route('/game/<int:game_id>')
 def game_page(game_id):
     """Code editor and game canvas page"""
-    game = Game.query.get_or_404(game_id)
+    game = db.session.get(Game, game_id)
+    if game is None:
+        return "Game not found", 404
     users = User.query.all()
     return render_template('game.html', game=game, users=users)
 
@@ -122,7 +124,7 @@ def load_code():
         })
 
     # If no saved code, return template
-    game = Game.query.get(game_id)
+    game = db.session.get(Game, game_id)
     return jsonify({
         'code': game.template_code,
         'version_id': None,
@@ -212,7 +214,9 @@ def get_history():
 @app.route('/api/code/version/<int:version_id>', methods=['GET'])
 def get_version(version_id):
     """Get a specific version of code"""
-    version = CodeVersion.query.get_or_404(version_id)
+    version = db.session.get(CodeVersion, version_id)
+    if version is None:
+        return jsonify({'error': 'Version not found'}), 404
     return jsonify({
         'id': version.id,
         'code': version.code,
@@ -231,8 +235,11 @@ def get_diff():
     if not version1_id or not version2_id:
         return jsonify({'error': 'version1_id and version2_id required'}), 400
 
-    v1 = CodeVersion.query.get_or_404(version1_id)
-    v2 = CodeVersion.query.get_or_404(version2_id)
+    v1 = db.session.get(CodeVersion, version1_id)
+    v2 = db.session.get(CodeVersion, version2_id)
+
+    if v1 is None or v2 is None:
+        return jsonify({'error': 'Version not found'}), 404
 
     # Generate unified diff
     diff = difflib.unified_diff(
@@ -258,7 +265,9 @@ def restore_version(version_id):
     if not user_id:
         return jsonify({'error': 'user_id required'}), 400
 
-    old_version = CodeVersion.query.get_or_404(version_id)
+    old_version = db.session.get(CodeVersion, version_id)
+    if old_version is None:
+        return jsonify({'error': 'Version not found'}), 404
 
     # Create new version with the old code
     new_version = CodeVersion(
