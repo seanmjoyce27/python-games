@@ -1384,6 +1384,7 @@ next_piece = create_new_piece()
 
 # Game state
 game_over = False
+game_started = False
 drop_counter = 0
 drop_speed = 30  # Frames between automatic drops
 fast_drop = False
@@ -1392,13 +1393,19 @@ last_key = None
 
 def update():
     """Update game logic"""
-    global current_piece, next_piece, game_over, drop_counter, fast_drop, move_delay, last_key
+    global current_piece, next_piece, game_over, game_started, drop_counter, fast_drop, move_delay, last_key
+
+    # Check for SPACE to start game
+    from js import is_key_pressed
+    if not game_started and not game_over:
+        if is_key_pressed(' '):
+            game_started = True
+        return
 
     if game_over:
         return
 
     # Handle keyboard input with delay
-    from js import is_key_pressed
 
     # Left movement
     if is_key_pressed('ArrowLeft'):
@@ -1446,8 +1453,7 @@ def update():
         current_piece.move_down()
 
         if board.check_collision(current_piece):
-            current_piece.move_up()  # Move back up
-            current_piece.y -= 1
+            current_piece.move_up()  # Move back up to valid position
             board.lock_piece(current_piece)
             board.clear_full_lines()
 
@@ -1466,6 +1472,13 @@ def draw():
 
     # Draw background
     draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Show start screen if game hasn't started
+    if not game_started and not game_over:
+        draw_text("TETRIS", 220, 250, "#ffffff", "72px Arial")
+        draw_text("Press SPACE to Start", 180, 320, "#ffffff", "28px Arial")
+        draw_text("← → : Move  ↑ : Rotate  ↓ : Drop", 120, 370, "#888888", "18px Arial")
+        return
 
     # Board offset to center it
     offset_x = 100
@@ -1526,7 +1539,7 @@ def draw():
     if game_over:
         draw_rect(offset_x, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 - 40, BOARD_WIDTH * BLOCK_SIZE, 80, "#000000")
         draw_text("GAME OVER", offset_x + 30, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2, "#ff4444", "32px Arial")
-        draw_text("Refresh to play again", offset_x + 10, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 + 35, "#ffffff", "16px Arial")
+        draw_text(f"Score: {board.score}", offset_x + 45, offset_y + BOARD_HEIGHT * BLOCK_SIZE // 2 + 35, "#ffffff", "20px Arial")
 
 # TODO: Make game faster as score increases (reduce drop_speed)
 # TODO: Add sound effects for line clears
