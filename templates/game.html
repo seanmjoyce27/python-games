@@ -319,10 +319,73 @@
                     }
                     window.clear_screen();
                     document.getElementById('stopBtn').style.display = 'none';
+                    document.getElementById('playAgainBtn').style.display = 'none';
                     document.getElementById('runBtn').style.display = 'inline-block';
                 }
 
+                function restartGame() {
+                    // Stop current game loop
+                    if (requestID) {
+                        cancelAnimationFrame(requestID);
+                        requestID = null;
+                    }
+
+                    // Clear canvas
+                    window.clear_screen();
+
+                    // Reset keyboard state
+                    window.keysPressed = {};
+                    window.lastKeyPressed = '';
+
+                    // Hide play again button, show stop button
+                    document.getElementById('playAgainBtn').style.display = 'none';
+                    document.getElementById('stopBtn').style.display = 'inline-block';
+
+                    // Re-run the Python code to reset game state
+                    try {
+                        // Reset stdout
+                        pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+`);
+
+                        // Re-run user code
+                        pyodide.runPython(code);
+
+                        // Restart game loop
+                        const hasUpdate = pyodide.runPython(" 'update' in globals() ");
+                        const hasDraw = pyodide.runPython(" 'draw' in globals() ");
+
+                        if (hasUpdate || hasDraw) {
+                            function gameLoop() {
+                                try {
+                                    if (hasUpdate) pyodide.runPython("update()");
+                                    if (hasDraw) pyodide.runPython("draw()");
+
+                                    // Check if game is over and show play again button
+                                    const gameOver = pyodide.runPython("game_over if 'game_over' in globals() else False");
+                                    if (gameOver) {
+                                        document.getElementById('playAgainBtn').style.display = 'inline-block';
+                                    }
+
+                                    requestID = requestAnimationFrame(gameLoop);
+                                } catch (error) {
+                                    console.error("Game Loop Error:", error);
+                                    stopGame();
+                                    errorDiv.textContent = "Runtime Error: " + error.message;
+                                }
+                            }
+                            gameLoop();
+                        }
+                    } catch (error) {
+                        errorDiv.textContent = error.message;
+                        output.innerHTML = '<p class="error">Error restarting game</p>';
+                    }
+                }
+
                 document.getElementById('stopBtn').addEventListener('click', stopGame);
+                document.getElementById('playAgainBtn').addEventListener('click', restartGame);
 
                 // Capture print statements
                 pyodide.runPython(`
@@ -346,6 +409,13 @@ sys.stdout = StringIO()
                         try {
                             if (hasUpdate) pyodide.runPython("update()");
                             if (hasDraw) pyodide.runPython("draw()");
+
+                            // Check if game is over and show play again button
+                            const gameOver = pyodide.runPython("game_over if 'game_over' in globals() else False");
+                            if (gameOver) {
+                                document.getElementById('playAgainBtn').style.display = 'inline-block';
+                            }
+
                             requestID = requestAnimationFrame(gameLoop);
                         } catch (error) {
                             console.error("Game Loop Error:", error);

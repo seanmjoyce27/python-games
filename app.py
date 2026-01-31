@@ -686,7 +686,7 @@ def draw():
     # Draw game over message
     if game_over:
         draw_text("GAME OVER!", 200, 300, "#ff4444", "48px Arial")
-        draw_text("Refresh to play again", 210, 350, "#ffffff", "24px Arial")
+        draw_text(f"Final Score: {score}", 220, 350, "#ffffff", "24px Arial")
 
 # TODO: Try changing the speed (change the % 6 in update function)
 # TODO: Try changing the colors of the snake or food
@@ -872,7 +872,7 @@ def draw():
     # Draw game over message
     if game_over:
         draw_text(f"{winner} WINS!", 180, CANVAS_HEIGHT // 2, "#44ff44", "48px Arial")
-        draw_text("Refresh to play again", 200, CANVAS_HEIGHT // 2 + 50, "#ffffff", "20px Arial")
+        draw_text(f"Score: {player1.score} - {player2.score}", 200, CANVAS_HEIGHT // 2 + 50, "#ffffff", "24px Arial")
 
 # TODO: Make paddles bigger or smaller (change height/width)
 # TODO: Make the ball faster (change initial speed_x/speed_y)
