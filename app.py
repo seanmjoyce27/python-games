@@ -4,6 +4,8 @@ from flask_cors import CORS
 from datetime import datetime, timezone
 import difflib
 import os
+import signal
+import sys
 
 app = Flask(__name__)
 
@@ -700,10 +702,34 @@ drop_speed = 500  # milliseconds between automatic drops
 
         print("Database initialized with 5 games: Snake, Pong, Space Invaders, Maze, Tetris!")
 
+def signal_handler(sig, frame):
+    """Handle SIGINT (Ctrl+C) and SIGTERM gracefully"""
+    print('\n🛑 Shutting down gracefully...')
+    sys.exit(0)
+
+
 if __name__ == '__main__':
+    # Register signal handlers for clean shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     # Only initialize database in the main process, not in reloader child processes
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         init_db()
+
     # Replit optimized: bind to 0.0.0.0 for external access
     port = int(os.environ.get('PORT', 8443))
-    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') != 'production')
+
+    try:
+        app.run(
+            host='0.0.0.0',
+            port=port,
+            debug=os.environ.get('FLASK_ENV') != 'production',
+            use_reloader=True,
+            threaded=True  # Enable threaded mode for better port cleanup
+        )
+    except KeyboardInterrupt:
+        print('\n🛑 Server stopped by user')
+    except Exception as e:
+        print(f'\n❌ Server error: {e}')
+        sys.exit(1)

@@ -10,6 +10,33 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
+def pytest_sessionstart(session):
+    """
+    Called before test session starts - clean up any lingering processes
+    """
+    try:
+        from port_utils import cleanup_port
+        # Clean up default port before tests
+        cleanup_port(8443)
+    except Exception:
+        pass  # Ignore cleanup errors, tests will handle it
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Called after test session ends - ensure ports are cleaned up
+    """
+    try:
+        from port_utils import cleanup_port
+        # Clean up default port after tests
+        cleanup_port(8443)
+        # Clean up any test ports
+        for port in [8444, 8445, 8446]:
+            cleanup_port(port)
+    except Exception:
+        pass  # Ignore cleanup errors
+
+
 @pytest.fixture(scope='function', autouse=False)
 def app():
     """Create and configure a test Flask application with isolated database"""
