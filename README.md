@@ -80,74 +80,647 @@ Each game includes:
 
 ### Option 2: Run Locally
 
-**For development or offline use**
+**For development, offline use, or full control**
 
-#### 1. Setup Environment
+#### Prerequisites
+
+- **Python 3.11+** (check: `python3 --version`)
+- **pip** (included with Python)
+- **SQLite** (built into Python)
+- **Git** (optional, for cloning)
+
+#### 1. Get the Code
 
 ```bash
-# Clone or download this repository
+# Option A: Clone from Git
+git clone <your-repo-url>
 cd python-games
 
-# Create virtual environment
+# Option B: Download and extract ZIP
+# Then: cd python-games
+```
+
+#### 2. Create Virtual Environment
+
+```bash
+# Create isolated Python environment
 python3 -m venv venv
 
 # Activate it
 source venv/bin/activate  # Mac/Linux
 # OR
 venv\Scripts\activate     # Windows
+
+# Verify activation (should show venv path)
+which python3  # Mac/Linux
+where python   # Windows
 ```
 
-#### 2. Configure Environment
+#### 3. Configure Environment Variables
 
 ```bash
-# Copy environment template
+# Copy the example environment file
 cp .env.example .env
 
-# Edit .env and set your SECRET_KEY
-# Generate a key: python -c "import secrets; print(secrets.token_hex(32))"
+# The .env file contains:
+# - SECRET_KEY: Flask secret (change for production!)
+# - FLASK_ENV: development or production
+# - DATABASE_URL: SQLite database path
+# - PORT: Server port (default 5000)
 ```
 
-#### 3. Install Dependencies
+**Generate a Secure SECRET_KEY:**
 
 ```bash
+# Generate a random secret key
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# Copy the output and paste into .env:
+# SECRET_KEY=<paste-generated-key-here>
+```
+
+**Your `.env` should look like:**
+
+```bash
+SECRET_KEY=a1b2c3d4e5f6...  # Your generated key
+FLASK_ENV=development
+DATABASE_URL=sqlite:///instance/python_games.db
+PORT=5000
+```
+
+#### 4. Install Dependencies
+
+```bash
+# Install production dependencies
 pip install -r requirements.txt
+
+# For development/testing (optional)
+pip install -r requirements-dev.txt
 ```
 
-#### 4. Run the Application
+**What gets installed:**
+- Flask 3.0.0 (web framework)
+- Flask-SQLAlchemy 3.1.1 (database ORM)
+- Flask-CORS 4.0.0 (CORS support)
+- python-dotenv 1.0.0 (environment variables)
+
+#### 5. Initialize Database
+
+The database is automatically created on first run, but you can verify:
 
 ```bash
+# Run the app (it will create the database)
 python app.py
 ```
 
-The app will:
-- ✅ Create `instance/` folder for database
-- ✅ Initialize SQLite database with 5 games
-- ✅ Start web server on port 5000
+**What happens automatically:**
+1. ✅ Creates `instance/` folder
+2. ✅ Creates `instance/python_games.db` (SQLite database)
+3. ✅ Creates tables: `user`, `game`, `code_version`
+4. ✅ Populates with 5 game templates
+5. ✅ Starts web server on http://localhost:5000
 
-#### 5. Access the App
+**Verify database creation:**
 
-Open your browser: **http://localhost:5000**
+```bash
+# Check that database file exists
+ls -lh instance/python_games.db
 
-### First Time Setup
+# Should show something like:
+# -rw-r--r--  1 user  staff   36K Jan 31 12:00 instance/python_games.db
+```
 
-After starting the app:
+#### 6. Access the Application
 
-1. **Create User Accounts**
+Open your browser to: **http://localhost:5000**
+
+You should see:
+- 🎮 Python Game Builder home page
+- 5 games listed (Snake, Pong, Space Invaders, Maze, Tetris)
+- "+ New Player" button to create users
+
+#### 7. Create First User
+
+1. Click "+ New Player"
+2. Enter a name (e.g., "John")
+3. Click "Create"
+4. User is saved to SQLite database
+5. Select user and choose a game
+
+---
+
+### Local Development Database
+
+#### Database Location
+
+```
+python-games/
+└── instance/
+    └── python_games.db  # SQLite database file
+```
+
+#### Database Schema
+
+**Users Table:**
+```sql
+CREATE TABLE user (
+    id INTEGER PRIMARY KEY,
+    username VARCHAR(80) UNIQUE NOT NULL,
+    created_at DATETIME
+);
+```
+
+**Games Table:**
+```sql
+CREATE TABLE game (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    template_code TEXT NOT NULL,
+    created_at DATETIME
+);
+```
+
+**Code Versions Table:**
+```sql
+CREATE TABLE code_version (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    game_id INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    message VARCHAR(200),
+    is_checkpoint BOOLEAN,
+    created_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES user (id),
+    FOREIGN KEY (game_id) REFERENCES game (id)
+);
+```
+
+#### Inspect Database (Optional)
+
+```bash
+# Install SQLite browser (optional)
+# Mac: brew install sqlite
+# Ubuntu: apt-get install sqlite3
+
+# Open database
+sqlite3 instance/python_games.db
+
+# Useful commands:
+.tables                    # List all tables
+.schema user              # Show user table schema
+SELECT * FROM game;       # List all games
+SELECT COUNT(*) FROM code_version;  # Count saves
+.exit                     # Exit SQLite
+```
+
+#### Reset Database
+
+```bash
+# Stop the app (Ctrl+C)
+
+# Delete database
+rm instance/python_games.db
+
+# Restart app - it will recreate
+python app.py
+```
+
+---
+
+### Local Testing
+
+#### Run Tests
+
+```bash
+# Install test dependencies
+pip install -r requirements-dev.txt
+
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ -v --cov=app --cov-report=term-missing
+
+# Run specific test file
+pytest tests/test_api.py -v
+
+# Run specific test
+pytest tests/test_api.py::TestUserAPI::test_create_user -v
+
+# Use the test runner script
+./run_tests.sh
+```
+
+#### What Gets Tested
+
+- ✅ **Models**: User, Game, CodeVersion creation
+- ✅ **API Endpoints**: User management, code save/load, history
+- ✅ **Version Control**: Save, restore, diff, pagination
+- ✅ **Admin Utilities**: Stats, user listing, backup info
+
+**Test Database:**
+- Tests use temporary SQLite databases
+- Created fresh for each test
+- Automatically cleaned up
+- Located in `/tmp/` directory
+- Never affects your production database
+
+#### Development Workflow
+
+```bash
+# 1. Activate environment
+source venv/bin/activate
+
+# 2. Make code changes
+# Edit app.py, templates, etc.
+
+# 3. Run tests
+pytest tests/ -v
+
+# 4. Test manually
+python app.py
+# Visit http://localhost:5000
+
+# 5. Check database
+python admin_utils.py stats
+
+# 6. Commit changes
+git add .
+git commit -m "Your changes"
+```
+
+---
+
+### Local Troubleshooting
+
+#### "ModuleNotFoundError: No module named 'flask'"
+
+```bash
+# Virtual environment not activated
+source venv/bin/activate  # Mac/Linux
+venv\Scripts\activate     # Windows
+
+# Or reinstall dependencies
+pip install -r requirements.txt
+```
+
+#### "Database is locked"
+
+```bash
+# Another instance is running
+# Kill the process:
+pkill -f "python app.py"
+
+# Or restart your terminal
+```
+
+#### "Permission denied: instance/python_games.db"
+
+```bash
+# Fix permissions
+chmod 644 instance/python_games.db
+chmod 755 instance/
+```
+
+#### "Address already in use (Port 5000)"
+
+```bash
+# Change port in .env
+PORT=5001
+
+# Or kill process using port 5000:
+lsof -ti:5000 | xargs kill -9  # Mac/Linux
+# Windows: Use Task Manager
+```
+
+#### Can't find .env file
+
+```bash
+# Create from template
+cp .env.example .env
+
+# Verify it exists
+ls -la .env
+
+# Should show: -rw-r--r--  1 user  staff  123 Jan 31 12:00 .env
+```
+
+#### Database not initializing
+
+```bash
+# Check Python version (need 3.11+)
+python3 --version
+
+# Check if instance folder exists
+ls -la instance/
+
+# If not, create it
+mkdir -p instance
+
+# Run app with debug output
+FLASK_ENV=development python app.py
+```
+
+---
+
+### Local Backup & Restore
+
+#### Backup Database
+
+```bash
+# Simple backup
+cp instance/python_games.db backups/python_games_$(date +%Y%m%d).db
+
+# Verify backup
+ls -lh backups/
+```
+
+#### Restore from Backup
+
+```bash
+# Stop app
+# Press Ctrl+C
+
+# Restore backup
+cp backups/python_games_20260131.db instance/python_games.db
+
+# Restart app
+python app.py
+```
+
+#### Export Data (SQL)
+
+```bash
+# Export all data
+sqlite3 instance/python_games.db .dump > backup.sql
+
+# Restore from SQL
+sqlite3 instance/python_games.db < backup.sql
+```
+
+---
+
+### Local Admin Tools
+
+Manage your local installation with command-line tools:
+
+```bash
+# Show database statistics
+python admin_utils.py stats
+
+# Example output:
+# 📊 Database Statistics
+# ══════════════════════════════════════════════════
+# 👥 Total Users: 2
+#    - John: 45 saves
+#    - Sarah: 32 saves
+#
+# 🎮 Total Games: 5
+#    - Snake Game: 25 total saves
+#    - Pong (2-Player): 18 total saves
+#    - Space Invaders: 15 total saves
+#    - Maze Adventure: 12 total saves
+#    - Tetris: 7 total saves
+#
+# 💾 Total Saves: 77
+#    - Checkpoints: 23
+#    - Auto-saves: 54
+```
+
+**Other Commands:**
+
+```bash
+# List all users
+python admin_utils.py list-users
+
+# Show user's version history
+python admin_utils.py user-history "John"
+
+# Get backup instructions
+python admin_utils.py backup-info
+
+# Create new user (via CLI)
+python admin_utils.py create-user "Alice"
+
+# Delete user (with confirmation)
+python admin_utils.py delete-user "OldUser"
+
+# Help
+python admin_utils.py help
+```
+
+---
+
+### Local Database Management
+
+#### Check Database Status
+
+```bash
+# Check if database exists and size
+ls -lh instance/python_games.db
+
+# Count records
+sqlite3 instance/python_games.db "SELECT COUNT(*) FROM code_version;"
+
+# List all users
+sqlite3 instance/python_games.db "SELECT id, username FROM user;"
+
+# See recent saves
+sqlite3 instance/python_games.db "
+  SELECT u.username, g.display_name, cv.created_at
+  FROM code_version cv
+  JOIN user u ON cv.user_id = u.id
+  JOIN game g ON cv.game_id = g.id
+  ORDER BY cv.created_at DESC
+  LIMIT 5;
+"
+```
+
+#### Database Maintenance
+
+```bash
+# Vacuum database (optimize)
+sqlite3 instance/python_games.db "VACUUM;"
+
+# Check integrity
+sqlite3 instance/python_games.db "PRAGMA integrity_check;"
+
+# View database info
+sqlite3 instance/python_games.db "PRAGMA database_list;"
+```
+
+#### Migration (Changing Databases)
+
+```bash
+# Export from old database
+sqlite3 old_database.db .dump > migration.sql
+
+# Import to new database
+sqlite3 instance/python_games.db < migration.sql
+```
+
+---
+
+### Local Environment Variables
+
+Your `.env` file controls the application behavior:
+
+```bash
+# Flask Configuration
+SECRET_KEY=your-secret-key-here        # Encryption key (CHANGE THIS!)
+FLASK_ENV=development                  # or 'production'
+
+# Database Configuration
+DATABASE_URL=sqlite:///instance/python_games.db  # SQLite path
+
+# Server Configuration
+PORT=5000                              # Port to run on
+```
+
+**Security Note:** The `.env` file is in `.gitignore` and won't be committed to Git. This protects your SECRET_KEY.
+
+#### Generate New SECRET_KEY
+
+```bash
+# Generate a secure random key
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# Example output:
+# 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+
+# Copy this into your .env file
+```
+
+#### Development vs Production
+
+**Development Mode** (`.env`):
+```bash
+FLASK_ENV=development
+```
+- Debug mode enabled
+- Detailed error messages
+- Auto-reload on code changes
+- Useful for learning/testing
+
+**Production Mode** (`.env`):
+```bash
+FLASK_ENV=production
+```
+- Debug mode disabled
+- Generic error messages
+- Better performance
+- Use for actual deployment
+
+---
+
+### First Time Local Setup
+
+After starting the app locally:
+
+1. **Verify Database Created**
+   ```bash
+   ls -la instance/python_games.db
+   python admin_utils.py stats
+   ```
+
+2. **Create User Accounts**
+   - Open http://localhost:5000
    - Click "+ New Player"
    - Enter child's name
    - Click "Create"
+   - User is saved to SQLite
    - Repeat for additional children
 
-2. **Start with Snake**
+3. **Verify Users Created**
+   ```bash
+   python admin_utils.py list-users
+   ```
+
+4. **Start with Snake**
    - Select user
    - Click "Start Coding" on Snake Game
+   - Code editor loads template from database
    - Follow TODO comments in code
 
-3. **Learn Version Control**
-   - Make a change
+5. **Test Save Functionality**
+   - Make a change (e.g., speed = 10)
    - Click "💾 Save Checkpoint"
-   - Add a note: "Made snake faster!"
-   - Click "📜 History" to see saves
+   - Add note: "Made snake faster!"
+   - Saved to `code_version` table in SQLite
+
+6. **Verify Save in Database**
+   ```bash
+   python admin_utils.py user-history "YourChildsName"
+   ```
+
+7. **Test Version History**
+   - Click "📜 History"
+   - See saves loaded from database
+   - View pagination if 50+ saves
+   - Test restore functionality
+
+---
+
+### Local Development Tips
+
+#### Quick Development Loop
+
+```bash
+# 1. Start app with auto-reload
+FLASK_ENV=development python app.py
+
+# 2. Make changes to code
+# Files in templates/, static/, or app.py
+
+# 3. Flask auto-reloads (no restart needed)
+
+# 4. Refresh browser to see changes
+
+# 5. Check logs in terminal
+```
+
+#### Debugging
+
+```bash
+# Enable debug mode
+export FLASK_ENV=development
+
+# Run with verbose output
+python -v app.py
+
+# Check database state
+python admin_utils.py stats
+
+# View recent errors in browser console (F12)
+```
+
+#### Clean Install
+
+```bash
+# Start fresh
+rm -rf venv/ instance/ .pytest_cache/ __pycache__/
+
+# Recreate environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+#### Port Conflicts
+
+```bash
+# If port 5000 is busy, change in .env:
+PORT=5001
+
+# Or use environment variable:
+PORT=5001 python app.py
+
+# Or kill process on port 5000:
+lsof -ti:5000 | xargs kill -9
+```
 
 ## How to Use
 
