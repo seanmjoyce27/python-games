@@ -6,6 +6,8 @@ import difflib
 import os
 import signal
 import sys
+import atexit
+import warnings
 
 app = Flask(__name__)
 
@@ -16,10 +18,16 @@ instance_path = os.path.join(basedir, 'instance')
 os.makedirs(instance_path, exist_ok=True)
 
 db_path = os.path.join(instance_path, "python_games.db")
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL',
-    f'sqlite:///{db_path}'
-)
+
+# Always use SQLite - ignore Replit's DATABASE_URL if it's PostgreSQL
+database_url = os.environ.get('DATABASE_URL', '')
+if database_url.startswith('postgres'):
+    # Replit provides PostgreSQL by default, but we want SQLite for this app
+    database_url = f'sqlite:///{db_path}'
+elif not database_url:
+    database_url = f'sqlite:///{db_path}'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
@@ -770,17 +778,34 @@ player2 = Paddle(CANVAS_WIDTH - 45, CANVAS_HEIGHT // 2 - 40)  # Right paddle
 ball = Ball()
 game_over = False
 game_started = False
+countdown_active = False
+countdown_timer = 0
+countdown_value = 3
 winner = ""
 
 def update():
     """Update game logic (called every frame)"""
-    global game_over, game_started, winner
+    global game_over, game_started, countdown_active, countdown_timer, countdown_value, winner
 
     # Check for SPACE to start game
     from js import is_key_pressed
     if not game_started and not game_over:
         if is_key_pressed(' '):
             game_started = True
+            countdown_active = True
+            countdown_timer = 0
+            countdown_value = 3
+        return
+
+    # Handle countdown
+    if countdown_active:
+        countdown_timer += 1
+        # Each number shows for about 30 frames (half a second at 60fps)
+        if countdown_timer >= 30:
+            countdown_timer = 0
+            countdown_value -= 1
+            if countdown_value <= 0:
+                countdown_active = False
         return
 
     if game_over:
@@ -822,9 +847,15 @@ def update():
     if ball.x < 0:
         player2.score += 1
         ball.reset()
+        countdown_active = True
+        countdown_timer = 0
+        countdown_value = 3
     elif ball.x > CANVAS_WIDTH:
         player1.score += 1
         ball.reset()
+        countdown_active = True
+        countdown_timer = 0
+        countdown_value = 3
 
     # Check for winner
     if player1.score >= WINNING_SCORE:
@@ -853,6 +884,10 @@ def draw():
     # Draw center line
     for i in range(0, CANVAS_HEIGHT, 20):
         draw_rect(CANVAS_WIDTH // 2 - 2, i, 4, 10, "#444444")
+
+    # Show countdown if active
+    if countdown_active and countdown_value > 0:
+        draw_text(str(countdown_value), CANVAS_WIDTH // 2 - 30, CANVAS_HEIGHT // 2, "#ffff44", "96px Arial")
 
     # Draw paddles
     draw_rect(player1.x, player1.y, player1.width, player1.height, "#4444ff")
@@ -967,6 +1002,7 @@ frame_count = 0
 score = 0
 game_over = False
 game_won = False
+game_started = False
 
 def check_collision(bullet, alien):
     """Check if bullet hits alien"""
@@ -977,7 +1013,13 @@ def check_collision(bullet, alien):
 
 def update():
     """Update game logic"""
-    global alien_direction, frame_count, score, game_over, game_won
+    global alien_direction, frame_count, score, game_over, game_won, game_started
+
+    if not game_started and not game_over:
+        from js import is_key_pressed
+        if is_key_pressed(' '):
+            game_started = True
+        return
 
     if game_over or game_won:
         return
@@ -1074,6 +1116,14 @@ def draw():
     for bullet in bullets:
         if bullet.active:
             draw_rect(bullet.x, bullet.y, bullet.width, bullet.height, "#ffffff")
+
+    # Show start screen if game hasn't started
+    if not game_started and not game_over:
+        draw_text("SPACE INVADERS", 140, 250, "#ffffff", "52px Arial")
+        draw_text("Press SPACE to Start", 200, 320, "#ffffff", "28px Arial")
+        draw_text("Arrow keys to move", 210, 370, "#888888", "20px Arial")
+        draw_text("SPACE to shoot", 230, 400, "#888888", "20px Arial")
+        return
 
     # Draw score and lives
     draw_text(f"Score: {score}", 10, 25, "#ffffff", "20px Arial")
@@ -1172,10 +1222,17 @@ won = False
 treasures_collected = 0
 total_treasures = sum(row.count(3) for row in maze.grid)
 frame_count = 0
+game_started = False
 
 def update():
     """Update game logic"""
-    global won, treasures_collected, frame_count
+    global won, treasures_collected, frame_count, game_started
+
+    if not game_started and not won:
+        from js import is_key_pressed
+        if is_key_pressed(' '):
+            game_started = True
+        return
 
     if won:
         return
@@ -1215,6 +1272,14 @@ def draw():
 
     # Draw background
     draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#1a1a1a")
+
+    # Show start screen if game hasn't started
+    if not game_started and not won:
+        draw_text("MAZE ADVENTURE", 160, 250, "#ffffff", "48px Arial")
+        draw_text("Press SPACE to Start", 180, 320, "#ffffff", "28px Arial")
+        draw_text("Arrow keys to move", 200, 370, "#888888", "20px Arial")
+        draw_text("Collect treasures and find the exit!", 130, 400, "#ffd700", "18px Arial")
+        return
 
     # Draw maze
     for y in range(len(maze.grid)):
@@ -1322,21 +1387,36 @@ class Board:
                     new_x = piece.x + x
                     new_y = piece.y + y
 
+                    # Check horizontal bounds
                     if new_x < 0 or new_x >= self.width:
                         return True
+
+                    # Check if piece is out of bounds vertically
+                    # Allow negative y (piece spawning at top), but not >= height
+                    if new_y < 0:
+                        continue  # Piece can spawn above board
                     if new_y >= self.height:
-                        return True
-                    if new_y >= 0 and self.grid[new_y][new_x]:
+                        return True  # Piece is below board
+
+                    # Check collision with locked pieces
+                    if self.grid[new_y][new_x]:
                         return True
         return False
 
     def lock_piece(self, piece):
         """Lock piece into board"""
+        # Find the lowest row where we're placing blocks
+        max_y = -1
         for y, row in enumerate(piece.shape):
             for x, cell in enumerate(row):
                 if cell and piece.y + y >= 0:
-                    self.grid[piece.y + y][piece.x + x] = 1
-                    self.colors[piece.y + y][piece.x + x] = piece.color
+                    actual_y = piece.y + y
+                    self.grid[actual_y][piece.x + x] = 1
+                    self.colors[actual_y][piece.x + x] = piece.color
+                    max_y = max(max_y, actual_y)
+        # Debug: see where pieces lock
+        from js import console
+        console.log(f"Locked piece, lowest block at row {max_y} (should be 19 for bottom)")
 
     def clear_full_lines(self):
         """Remove completed lines and award points"""
@@ -1450,10 +1530,16 @@ def update():
 
     if drop_counter >= current_drop_speed:
         drop_counter = 0
-        current_piece.move_down()
 
-        if board.check_collision(current_piece):
-            current_piece.move_up()  # Move back up to valid position
+        # Check if piece can move down before actually moving
+        current_piece.move_down()
+        can_move = not board.check_collision(current_piece)
+
+        if not can_move:
+            # Collision detected - undo the move
+            current_piece.move_up()
+
+            # Lock the piece at current position
             board.lock_piece(current_piece)
             board.clear_full_lines()
 
@@ -1683,6 +1769,10 @@ def signal_handler(sig, frame):
 
 
 if __name__ == '__main__':
+    # Suppress resource tracker warnings from Werkzeug reloader
+    # These are harmless and occur because Flask's dev server uses multiprocessing
+    warnings.filterwarnings('ignore', category=UserWarning, module='multiprocessing.resource_tracker')
+
     # Register signal handlers for clean shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
