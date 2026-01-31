@@ -38,7 +38,10 @@
             <div class="game-panel">
                 <div class="panel-header">
                     <h3>Game Preview</h3>
-                    <button id="stopBtn" class="btn-stop" style="display: none;">⏹ Stop</button>
+                    <div class="game-controls">
+                        <button id="playAgainBtn" class="btn-play-again" style="display: none;">🔄 Play Again</button>
+                        <button id="stopBtn" class="btn-stop" style="display: none;">⏹ Stop</button>
+                    </div>
                 </div>
                 <div id="gameCanvas">
                     <canvas id="canvas" width="600" height="600"></canvas>
@@ -251,16 +254,26 @@
 
                 // Setup keyboard listeners
                 window.addEventListener('keydown', (e) => {
-                    window.keysPressed[e.key] = true;
-                    window.lastKeyPressed = e.key;
-                    // Prevent arrow keys from scrolling
-                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-                        e.preventDefault();
+                    // Don't track keys if user is typing in the code editor
+                    const isTypingInEditor = document.activeElement.classList.contains('CodeMirror-code') ||
+                                            document.activeElement.closest('.CodeMirror');
+
+                    if (!isTypingInEditor) {
+                        window.keysPressed[e.key] = true;
+                        window.lastKeyPressed = e.key;
+                        // Prevent arrow keys and space from scrolling only when not in editor
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                            e.preventDefault();
+                        }
                     }
                 });
 
                 window.addEventListener('keyup', (e) => {
-                    window.keysPressed[e.key] = false;
+                    const isTypingInEditor = document.activeElement.classList.contains('CodeMirror-code') ||
+                                            document.activeElement.closest('.CodeMirror');
+                    if (!isTypingInEditor) {
+                        window.keysPressed[e.key] = false;
+                    }
                 });
 
                 // Expose drawing functions to window for Python to access via 'js' module
