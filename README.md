@@ -126,7 +126,7 @@ cp .env.example .env
 # - SECRET_KEY: Flask secret (change for production!)
 # - FLASK_ENV: development or production
 # - DATABASE_URL: SQLite database path
-# - PORT: Server port (default 5000)
+# - PORT: Server port (default 8443)
 ```
 
 **Generate a Secure SECRET_KEY:**
@@ -145,7 +145,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=a1b2c3d4e5f6...  # Your generated key
 FLASK_ENV=development
 DATABASE_URL=sqlite:///instance/python_games.db
-PORT=5000
+PORT=8443
 ```
 
 #### 4. Install Dependencies
@@ -178,7 +178,7 @@ python app.py
 2. ✅ Creates `instance/python_games.db` (SQLite database)
 3. ✅ Creates tables: `user`, `game`, `code_version`
 4. ✅ Populates with 5 game templates
-5. ✅ Starts web server on http://localhost:5000
+5. ✅ Starts web server on http://localhost:8443
 
 **Verify database creation:**
 
@@ -192,7 +192,7 @@ ls -lh instance/python_games.db
 
 #### 6. Access the Application
 
-Open your browser to: **http://localhost:5000**
+Open your browser to: **http://localhost:8443**
 
 You should see:
 - 🎮 Python Game Builder home page
@@ -341,7 +341,7 @@ pytest tests/ -v
 
 # 4. Test manually
 python app.py
-# Visit http://localhost:5000
+# Visit http://localhost:8443
 
 # 5. Check database
 python admin_utils.py stats
@@ -384,14 +384,14 @@ chmod 644 instance/python_games.db
 chmod 755 instance/
 ```
 
-#### "Address already in use (Port 5000)"
+#### "Address already in use (Port 8443)"
 
 ```bash
 # Change port in .env
 PORT=5001
 
-# Or kill process using port 5000:
-lsof -ti:5000 | xargs kill -9  # Mac/Linux
+# Or kill process using port 8443:
+lsof -ti:8443 | xargs kill -9  # Mac/Linux
 # Windows: Use Task Manager
 ```
 
@@ -576,7 +576,7 @@ FLASK_ENV=development                  # or 'production'
 DATABASE_URL=sqlite:///instance/python_games.db  # SQLite path
 
 # Server Configuration
-PORT=5000                              # Port to run on
+PORT=8443                              # Port to run on
 ```
 
 **Security Note:** The `.env` file is in `.gitignore` and won't be committed to Git. This protects your SECRET_KEY.
@@ -626,7 +626,7 @@ After starting the app locally:
    ```
 
 2. **Create User Accounts**
-   - Open http://localhost:5000
+   - Open http://localhost:8443
    - Click "+ New Player"
    - Enter child's name
    - Click "Create"
@@ -712,14 +712,14 @@ python app.py
 #### Port Conflicts
 
 ```bash
-# If port 5000 is busy, change in .env:
+# If port 8443 is busy, change in .env:
 PORT=5001
 
 # Or use environment variable:
 PORT=5001 python app.py
 
-# Or kill process on port 5000:
-lsof -ti:5000 | xargs kill -9
+# Or kill process on port 8443:
+lsof -ti:8443 | xargs kill -9
 ```
 
 ## How to Use

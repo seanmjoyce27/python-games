@@ -40,7 +40,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 
 ### 3. Network Binding ✅
 
-**Original**: `app.run(debug=True, port=5000)`
+**Original**: `app.run(debug=True, port=8443)`
 **Replit**: `app.run(host='0.0.0.0', port=port, debug=False)`
 
 **Benefits**:
@@ -189,7 +189,7 @@ Set in Replit Secrets:
 
 ### Optional
 
-3. **PORT** - Default: 5000
+3. **PORT** - Default: 8443
 4. **DATABASE_URL** - Default: sqlite:///instance/python_games.db
 
 ## Security Enhancements

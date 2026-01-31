@@ -691,5 +691,5 @@ drop_speed = 500  # milliseconds between automatic drops
 if __name__ == '__main__':
     init_db()
     # Replit optimized: bind to 0.0.0.0 for external access
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8443))
     app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') != 'production')

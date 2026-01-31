@@ -73,7 +73,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open your browser to: **http://localhost:5000**
+Open your browser to: **http://localhost:8443**
 
 ---
 

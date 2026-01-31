@@ -24,7 +24,7 @@ This Python Game Builder is optimized for Replit hosting. Follow these simple st
 The app is pre-configured for Replit with:
 - `.replit` - Run configuration
 - `replit.nix` - Python environment setup
-- Automatic port binding to `0.0.0.0:5000`
+- Automatic port binding to `0.0.0.0:8443`
 - Instance folder for SQLite database persistence
 
 ### Environment Variables (Optional)
@@ -33,7 +33,7 @@ You can set these in Replit's "Secrets" tab (Tools → Secrets):
 
 - `SECRET_KEY` - Flask secret key (auto-generated if not set)
 - `FLASK_ENV` - Set to `production` for deployment
-- `PORT` - Port number (defaults to 5000)
+- `PORT` - Port number (defaults to 8443)
 
 ## ▶️ Running the App
 

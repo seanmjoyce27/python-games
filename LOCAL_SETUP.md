@@ -49,7 +49,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 python app.py
 
 # 3. Open browser
-# http://localhost:5000
+# http://localhost:8443
 ```
 
 **Done!** Database auto-creates with 5 games.
@@ -294,7 +294,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 SECRET_KEY=<paste-generated-key>
 FLASK_ENV=development
 DATABASE_URL=sqlite:///instance/python_games.db
-PORT=5000
+PORT=8443
 ```
 
 ### What Each Variable Does
@@ -302,7 +302,7 @@ PORT=5000
 - **SECRET_KEY**: Encrypts session data (MUST be random!)
 - **FLASK_ENV**: `development` (debug on) or `production` (debug off)
 - **DATABASE_URL**: Path to SQLite database
-- **PORT**: Web server port (default: 5000)
+- **PORT**: Web server port (default: 8443)
 
 ---
 
@@ -456,14 +456,14 @@ pkill -f "python app.py"
 # Or restart terminal
 ```
 
-### "Port 5000 already in use"
+### "Port 8443 already in use"
 
 ```bash
 # Change port in .env
 PORT=5001
 
 # Or kill process
-lsof -ti:5000 | xargs kill -9  # Mac/Linux
+lsof -ti:8443 | xargs kill -9  # Mac/Linux
 ```
 
 ### Can't find .env
@@ -495,7 +495,7 @@ FLASK_ENV=development python app.py
 
 After running `python app.py`:
 
-- [ ] Open http://localhost:5000
+- [ ] Open http://localhost:8443
 - [ ] See "Python Game Builder" page
 - [ ] Click "+ New Player"
 - [ ] Create test user
@@ -701,7 +701,7 @@ code_version table:
 ### Common Commands
 ```bash
 # Is app running?
-lsof -i :5000
+lsof -i :8443
 
 # Is database there?
 ls -la instance/
@@ -734,7 +734,7 @@ ls -lh instance/python_games.db  # Should exist
 python admin_utils.py stats   # Should show 5 games
 
 # 5. Web server
-curl http://localhost:5000    # Should return HTML
+curl http://localhost:8443    # Should return HTML
 
 # 6. Tests
 pytest tests/ -v              # Should pass (with noted issues)
@@ -747,7 +747,7 @@ pytest tests/ -v              # Should pass (with noted issues)
 ## 🎯 Next Steps
 
 1. **Start app**: `python app.py`
-2. **Open browser**: http://localhost:5000
+2. **Open browser**: http://localhost:8443
 3. **Create users**: Use "+ New Player" button
 4. **Start coding**: Begin with Snake game
 5. **Monitor**: Use `python admin_utils.py stats`

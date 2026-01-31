@@ -29,7 +29,7 @@ Set these in Replit Secrets (Tools → Secrets):
   secrets.token_hex(32)
   ```
 - [ ] `FLASK_ENV` - Set to `production`
-- [ ] `PORT` - Leave as default (5000) or customize
+- [ ] `PORT` - Leave as default (8443) or customize
 
 ### First Run
 
