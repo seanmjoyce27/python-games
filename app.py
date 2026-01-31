@@ -1391,32 +1391,23 @@ class Board:
                     if new_x < 0 or new_x >= self.width:
                         return True
 
-                    # Check if piece is out of bounds vertically
-                    # Allow negative y (piece spawning at top), but not >= height
-                    if new_y < 0:
-                        continue  # Piece can spawn above board
+                    # Check vertical bounds
                     if new_y >= self.height:
-                        return True  # Piece is below board
+                        return True  # Below the board
 
-                    # Check collision with locked pieces
-                    if self.grid[new_y][new_x]:
+                    # Only check grid collision if within visible board area
+                    if new_y >= 0 and self.grid[new_y][new_x]:
                         return True
         return False
 
     def lock_piece(self, piece):
         """Lock piece into board"""
-        # Find the lowest row where we're placing blocks
-        max_y = -1
         for y, row in enumerate(piece.shape):
             for x, cell in enumerate(row):
                 if cell and piece.y + y >= 0:
                     actual_y = piece.y + y
                     self.grid[actual_y][piece.x + x] = 1
                     self.colors[actual_y][piece.x + x] = piece.color
-                    max_y = max(max_y, actual_y)
-        # Debug: see where pieces lock
-        from js import console
-        console.log(f"Locked piece, lowest block at row {max_y} (should be 19 for bottom)")
 
     def clear_full_lines(self):
         """Remove completed lines and award points"""
