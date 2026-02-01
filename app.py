@@ -541,7 +541,7 @@ def init_db():
         def get_or_create_mission(game_id, title, order, data):
             mission = Mission.query.filter_by(game_id=game_id, title=title).first()
             if not mission:
-                mission = Mission(game_id=game_id, title=title, **data)
+                mission = Mission(game_id=game_id, title=title, order=order, **data)
                 db.session.add(mission)
                 db.session.commit()
                 print(f"✅ Seeded mission: {title}")
