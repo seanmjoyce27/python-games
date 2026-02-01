@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Python Game Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #a855f7;
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            padding: 2rem;
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .user-table th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .btn-delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .create-form {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        input {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            flex-grow: 1;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .login-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            padding: 3rem;
+            border-radius: 2rem;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-card h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        {% if not authenticated %}
+        <div class="login-container">
+            <div class="login-card">
+                <h1>Admin Login</h1>
+                <form method="POST">
+                    <input type="password" name="password" placeholder="Admin Password" required
+                        style="width: 100%; margin-bottom: 1.5rem; box-sizing: border-box;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Unlock Dashboard</button>
+                    {% if error %}
+                    <p style="color: var(--danger); text-align: center; margin-top: 1rem; font-size: 0.875rem;">{{ error
+                        }}</p>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="header">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p style="color: var(--text-muted); margin: 0.5rem 0 0 0;">System Overview & Management</p>
+            </div>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">Logout</a>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Students</div>
+                <div class="stat-value">{{ users|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Code Saves</div>
+                <div class="stat-value">{{ total_saves }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Missions</div>
+                <div class="stat-value">{{ total_missions }}</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Student Management</h2>
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Created</th>
+                        <th>Saves</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ user.username }}</td>
+                        <td style="color: var(--text-muted);">{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ user.code_versions|length }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_delete_user', username=user.username) }}"
+                                onsubmit="return confirm('Really delete {{ user.username }} and all their work?');"
+                                style="display:inline;">
+                                <button type="submit" class="btn btn-delete">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.5rem;">
+                <h3>Add New Student</h3>
+                <form class="create-form" method="POST" action="{{ url_for('admin_create_user') }}">
+                    <input type="text" name="username" placeholder="Enter student name..." required>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Game Templates</h2>
+            <div style="display: grid; gap: 1rem;">
+                {% for game in games %}
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(15, 23, 42, 0.3); border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div>
+                        <span style="font-weight: 600;">{{ game.display_name }}</span>
+                        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 1rem;">{{ game.name
+                            }}</span>
+                    </div>
+                    <span style="color: var(--secondary); font-size: 0.875rem;">Game ID: {{ game.id }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+
+</html>

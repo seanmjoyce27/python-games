@@ -4,6 +4,9 @@ modules = ["python-3.11"]
 [nix]
 channel = "stable-24_05"
 
+[env]
+REINT_DB = "false"
+
 [deployment]
 run = ["sh", "-c", "gunicorn -b 0.0.0.0:$PORT app:app -c gunicorn.conf.py"]
 healthcheckPath = "/healthz"

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -101,6 +101,68 @@ def index():
     except OperationalError:
         # DB/tables not ready yet (common on fresh deploy)
         return "Starting up…", 200
+    except Exception as e:
+        print(f"Error in index: {e}")
+        return "Internal Server Error", 500
+
+# Admin Routes
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_panel():
+    """Admin dashboard with password protection"""
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    
+    if request.method == 'POST' and not session.get('admin_authenticated'):
+        if request.form.get('password') == admin_password:
+            session['admin_authenticated'] = True
+            return redirect(url_for('admin_panel'))
+        else:
+            return render_template('admin.html', authenticated=False, error="Incorrect password")
+
+    if not session.get('admin_authenticated'):
+        return render_template('admin.html', authenticated=False)
+
+    users = User.query.all()
+    games = Game.query.all()
+    total_saves = CodeVersion.query.count()
+    total_missions = Mission.query.count()
+
+    return render_template('admin.html', 
+                         authenticated=True, 
+                         users=users, 
+                         games=games, 
+                         total_saves=total_saves,
+                         total_missions=total_missions)
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_authenticated', None)
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/users/create', methods=['POST'])
+def admin_create_user():
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_panel'))
+    
+    username = request.form.get('username')
+    if username:
+        if not User.query.filter_by(username=username).first():
+            user = User(username=username)
+            db.session.add(user)
+            db.session.commit()
+    
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/users/delete/<username>', methods=['POST'])
+def admin_delete_user(username):
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_panel'))
+    
+    user = User.query.filter_by(username=username).first()
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+    
+    return redirect(url_for('admin_panel'))
 
 @app.route('/game/<int:game_id>')
 def game_page(game_id):
@@ -540,6 +602,14 @@ def init_db():
                 db.session.add(game)
                 db.session.commit()
                 print(f"✅ Seeded game: {display_name}")
+            else:
+                # Update template if it has changed in app.py
+                if game.template_code != template_code:
+                    game.template_code = template_code
+                    game.display_name = display_name
+                    game.description = description
+                    db.session.commit()
+                    print(f"🔄 Updated template for: {display_name}")
             return game
 
         # Helper to add mission if missing
@@ -567,27 +637,14 @@ CANVAS_HEIGHT = 600
 
 class Snake:
     def __init__(self):
-        self.x = 15
-        self.y = 15
-        self.segments = [(15, 15)]
+        self.x = 10
+        self.y = 10
+        self.segments = [(10, 10), (9, 10), (8, 10)]
         self.direction = "right"
-        self.next_direction = "right"
-
-    def change_direction(self, new_direction):
-        """Change direction, but prevent 180-degree turns"""
-        if new_direction == "right" and self.direction != "left":
-            self.next_direction = "right"
-        elif new_direction == "left" and self.direction != "right":
-            self.next_direction = "left"
-        elif new_direction == "up" and self.direction != "down":
-            self.next_direction = "up"
-        elif new_direction == "down" and self.direction != "up":
-            self.next_direction = "down"
+        self.speed = 5  # Try changing this!
 
     def move(self):
         """Move the snake in the current direction"""
-        self.direction = self.next_direction
-
         if self.direction == "right":
             self.x += 1
         elif self.direction == "left":
@@ -655,21 +712,22 @@ def update():
     if game_over:
         return
 
-    # Move snake every 6 frames (adjust for speed)
+    # Move snake based on its speed
     frame_count += 1
-    if frame_count % 6 != 0:
+    # Higher speed = fewer frames between moves
+    move_delay = max(1, 10 - snake.speed) 
+    if frame_count % move_delay != 0:
         return
 
     # Handle keyboard input
-    from js import is_key_pressed
-    if is_key_pressed("ArrowRight"):
-        snake.change_direction("right")
-    elif is_key_pressed("ArrowLeft"):
-        snake.change_direction("left")
-    elif is_key_pressed("ArrowUp"):
-        snake.change_direction("up")
-    elif is_key_pressed("ArrowDown"):
-        snake.change_direction("down")
+    if is_key_pressed("ArrowRight") and snake.direction != "left":
+        snake.direction = "right"
+    elif is_key_pressed("ArrowLeft") and snake.direction != "right":
+        snake.direction = "left"
+    elif is_key_pressed("ArrowUp") and snake.direction != "down":
+        snake.direction = "up"
+    elif is_key_pressed("ArrowDown") and snake.direction != "up":
+        snake.direction = "down"
 
     # Move snake
     snake.move()
@@ -700,12 +758,6 @@ def draw():
         draw_text("Use Arrow Keys to Move", 160, 360, "#888888", "20px Arial")
         return
 
-    # Draw grid (optional, for visual reference)
-    for i in range(0, CANVAS_WIDTH, GRID_SIZE):
-        draw_rect(i, 0, 1, CANVAS_HEIGHT, "#2a2a2a")
-    for i in range(0, CANVAS_HEIGHT, GRID_SIZE):
-        draw_rect(0, i, CANVAS_WIDTH, 1, "#2a2a2a")
-
     # Draw food
     draw_rect(
         food.x * GRID_SIZE + 2,
@@ -734,9 +786,9 @@ def draw():
         draw_text("GAME OVER!", 200, 300, "#ff4444", "48px Arial")
         draw_text(f"Final Score: {score}", 220, 350, "#ffffff", "24px Arial")
 
-# TODO: Try changing the speed (change the % 6 in update function)
+# TODO: Try changing the speed variable in the Snake class
 # TODO: Try changing the colors of the snake or food
-# TODO: Can you make the snake start longer?
+# TODO: Can you make the snake start even longer?
 '''
 
         snake = get_or_create_game(
@@ -1685,7 +1737,7 @@ def draw():
 
         # Snake Mission 1: Change speed
         get_or_create_mission(snake.id, "Change the Snake's Speed", 1, {
-            'description': "Find the `speed` variable (around line 8) and change it to a different number. Try 3 for slow, 10 for fast, or 20 for super fast! What feels best to you?",
+            'description': "Find the `speed` variable (around line 19) and change it to a different number. Try 3 for slow, 10 for fast, or 20 for super fast! What feels best to you?",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -1704,7 +1756,7 @@ def draw():
 
         # Snake Mission 2: Change grid size
         get_or_create_mission(snake.id, "Make the Game Board Bigger or Smaller", 2, {
-            'description': "Find `GRID_SIZE = 20` (around line 10) and change it. Try 15 for a smaller board or 25 for a bigger board!",
+            'description': "Find `GRID_SIZE = 20` (around line 9) and change it. Try 15 for a smaller board or 25 for a bigger board!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
