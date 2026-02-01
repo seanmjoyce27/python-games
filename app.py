@@ -520,6 +520,11 @@ def init_db():
     os.makedirs(instance_path, exist_ok=True)
 
     with app.app_context():
+        # Check if we should reinitialize the database from scratch
+        if os.environ.get('REINIT_DB') == 'true':
+            print("⚠️ REINIT_DB is true - dropping all tables and recreating...")
+            db.drop_all()
+            
         db.create_all()
 
         # Individual game seeding for robustness
