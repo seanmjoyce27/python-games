@@ -6,6 +6,7 @@ Complete documentation for the Python Game Builder learning platform.
 
 - **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
 - **[Avatar System](AVATAR_SYSTEM.md)** - How the 15 coding avatars work
+- **[Mission Leaderboard](LEADERBOARD.md)** - Competitive ranking system
 - **[Admin Panel](ADMIN.md)** - Managing students and monitoring progress
 
 ## 📖 Documentation Overview
@@ -28,6 +29,11 @@ Complete documentation for the Python Game Builder learning platform.
    - List of all 15 avatars
    - How the system works
 
+4. **[Mission Leaderboard](LEADERBOARD.md)**
+   - How ranking works
+   - Medal system for top 3
+   - Motivating friendly competition
+
 ### For Developers
 
 - **Port Configuration**: App runs on port 8443 by default
@@ -48,6 +54,7 @@ Complete documentation for the Python Game Builder learning platform.
 - **Live Preview** - See changes immediately
 - **Version History** - Unlimited auto-saves
 - **Missions System** - Guided learning objectives
+- **Mission Leaderboard** - Competitive rankings with medals
 - **Real-time Feedback** - Instant code validation
 
 ### Platform Features
@@ -87,7 +94,8 @@ python-games/
 │   ├── README.md         # This file
 │   ├── QUICKSTART.md     # Getting started
 │   ├── ADMIN.md          # Admin guide
-│   └── AVATAR_SYSTEM.md  # Avatar details
+│   ├── AVATAR_SYSTEM.md  # Avatar details
+│   └── LEADERBOARD.md    # Leaderboard system
 ├── instance/             # Database (local dev)
 │   └── python_games.db
 └── .env                  # Configuration

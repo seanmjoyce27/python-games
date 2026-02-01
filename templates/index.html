@@ -16,6 +16,13 @@
             <a href="/admin" style="position: absolute; top: 2rem; right: 2rem; color: #888; text-decoration: none; font-size: 0.875rem;">Admin</a>
         </header>
 
+        <section class="leaderboard-section">
+            <h2>🏆 Mission Leaderboard</h2>
+            <div id="leaderboard" class="leaderboard">
+                <!-- Leaderboard will be loaded here -->
+            </div>
+        </section>
+
         <section class="user-section">
             <h2>Choose Your Coder</h2>
             <div class="user-selector">
@@ -57,6 +64,45 @@
 
     <script>
         let selectedUserId = null;
+
+        // Load leaderboard
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard');
+                const leaderboard = await response.json();
+
+                const container = document.getElementById('leaderboard');
+
+                if (leaderboard.length === 0) {
+                    container.innerHTML = '<p class="info">No coders yet! Complete missions to climb the leaderboard.</p>';
+                    return;
+                }
+
+                container.innerHTML = leaderboard.map((entry, index) => {
+                    const rank = index + 1;
+                    const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+
+                    return `
+                        <div class="leaderboard-entry ${rank <= 3 ? 'top-three' : ''}">
+                            <div class="leaderboard-rank">${medal}</div>
+                            <div class="leaderboard-avatar">
+                                <div class="avatar-emoji-small" style="background: ${entry.avatar.color}">
+                                    ${entry.avatar.emoji}
+                                </div>
+                            </div>
+                            <div class="leaderboard-name">${entry.avatar.name}</div>
+                            <div class="leaderboard-score">
+                                <span class="score-number">${entry.completed_missions}</span>
+                                <span class="score-label">mission${entry.completed_missions !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+            }
+        }
 
         // Load active users on page load
         async function loadActiveUsers() {
@@ -183,7 +229,8 @@
             });
         });
 
-        // Load active users on page load
+        // Load leaderboard and active users on page load
+        loadLeaderboard();
         loadActiveUsers();
     </script>
 </body>

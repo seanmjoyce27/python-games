@@ -233,6 +233,30 @@ def get_avatars():
 
     return jsonify(avatars_with_status)
 
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """Get leaderboard with mission completion counts"""
+    users = User.query.all()
+    leaderboard = []
+
+    for user in users:
+        # Count completed missions for this user
+        completed_count = UserMissionProgress.query.filter_by(
+            user_id=user.id,
+            status='completed'
+        ).count()
+
+        leaderboard.append({
+            'user_id': user.id,
+            'avatar': user.get_avatar(),
+            'completed_missions': completed_count
+        })
+
+    # Sort by completed missions (descending)
+    leaderboard.sort(key=lambda x: x['completed_missions'], reverse=True)
+
+    return jsonify(leaderboard)
+
 @app.route('/api/users', methods=['GET', 'POST'])
 def manage_users():
     """Get all users or create a new user"""
