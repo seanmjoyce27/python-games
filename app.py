@@ -1826,6 +1826,360 @@ def draw():
             ])
         })
 
+        # --- Pong Missions ---
+        # Pong Mission 1: Change paddle speed
+        get_or_create_mission(pong.id, "Change the Paddle Speed", 1, {
+            'description': "Find the `speed` variable in the `Paddle` class (around line 19) and change it. Try 12 for faster paddles or 5 for a real challenge!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'speed',
+                'old_value': '8',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Great! You changed the paddle speed. It should feel different now!',
+                'failure_message': 'Find the speed variable in the Paddle class and change it to another number.'
+            }),
+            'hints': json.dumps([
+                "Look for 'self.speed = 8' inside the Paddle __init__ method",
+                "A higher number makes the paddle move faster",
+                "Try a number like 12 or 15!"
+            ])
+        })
+
+        # Pong Mission 2: Change winning score
+        get_or_create_mission(pong.id, "Change the Winning Score", 2, {
+            'description': "Find `WINNING_SCORE = 5` (around line 11) and change it to something else, like 10 or 3. How long do you want the game to last?",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'WINNING_SCORE',
+                'old_value': '5',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Excellent! You updated the rules of the game.',
+                'failure_message': 'Look for WINNING_SCORE and change it to a different number.'
+            }),
+            'hints': json.dumps([
+                "WINNING_SCORE is near the top of the file",
+                "Change it to 10 for a longer game or 3 for a quick one!"
+            ])
+        })
+
+        # Pong Mission 3: Make the ball bigger
+        get_or_create_mission(pong.id, "Make the Ball Bigger", 3, {
+            'description': "Find where the ball's `radius` is set in the `reset` method (around line 59) and change it. Try 15 or 20!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'radius',
+                'old_value': '8',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Whoa! That\'s a big ball! Much easier to hit now.',
+                'failure_message': 'Find "self.radius = 8" and change 8 to a larger number.'
+            }),
+            'hints': json.dumps([
+                "Look for 'self.radius = 8' inside the Ball.reset() method",
+                "A larger radius makes the ball look and act bigger"
+            ])
+        })
+
+        # Pong Mission 4: Resize the paddles
+        get_or_create_mission(pong.id, "Resize the Paddles", 4, {
+            'description': "Find the `height` of the paddles (around line 18) and change it. Make them 120 pixels high to make it easier to block the ball!",
+            'difficulty': "intermediate",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'height',
+                'old_value': '80',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Paddles resized! They look like shields now.',
+                'failure_message': 'Change "self.height = 80" to a different number in the Paddle class.'
+            }),
+            'hints': json.dumps([
+                "Look for 'self.height = 80' in the Paddle __init__ method",
+                "Try 120 for tall paddles or 40 for tiny paddles!"
+            ])
+        })
+
+        # Pong Mission 5: Advanced Creative Feature
+        get_or_create_mission(pong.id, "Add Your Own Creative Feature", 5, {
+            'description': "Add your own creative touch to Pong! Add 5+ lines of code to make something new happened. Maybe change the colors when someone scores?",
+            'difficulty': "advanced",
+            'validation_type': "line_count_increased",
+            'validation_data': json.dumps({
+                'min_increase': 5,
+                'success_message': 'Superb! You\'ve made Pong your own.',
+                'failure_message': 'Add at least 5 more lines of code to create something unique.'
+            }),
+            'hints': json.dumps([
+                "Try changing the background color in the draw() function",
+                "Add a special effect when the ball hits a paddle",
+                "Change the ball's color over time",
+                "Add a third paddle in the middle!"
+            ])
+        })
+
+        # --- Space Invaders Missions ---
+        # Space Invaders Mission 1: Make the ship faster
+        get_or_create_mission(space_invaders.id, "Make the Ship Faster", 1, {
+            'description': "Find the `speed` variable in the `Player` class (around line 31) and increase it to 12. Zip across the screen!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'speed',
+                'old_value': '7',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Speed boost activated! You can now outrun those aliens.',
+                'failure_message': 'Find "self.speed = 7" in the Player class and change it.'
+            }),
+            'hints': json.dumps([
+                "Look for 'self.speed = 7' inside Player.__init__",
+                "A higher number makes the ship move faster"
+            ])
+        })
+
+        # Space Invaders Mission 2: Make the aliens faster
+        get_or_create_mission(space_invaders.id, "Make the Aliens Faster", 2, {
+            'description': "Find `alien_speed = 1` (around line 86) and change it to 3. They're coming for Earth!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'alien_speed',
+                'old_value': '1',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Oh no! The aliens have upgraded their engines!',
+                'failure_message': 'Change alien_speed from 1 to another number.'
+            }),
+            'hints': json.dumps([
+                "alien_speed is a global variable around line 86",
+                "Try 2 or 3 for a real challenge!"
+            ])
+        })
+
+        # Space Invaders Mission 3: Add more alien rows
+        get_or_create_mission(space_invaders.id, "Add More Alien Rows", 3, {
+            'description': "Find the loop that creates the aliens (around line 75) and change `range(5)` to `range(7)`. More aliens to defeat!",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'range(7)',
+                'success_message': 'An entire armada of aliens! Can you stop them all?',
+                'failure_message': 'Change range(5) to range(7) in the alien creation loop.'
+            }),
+            'hints': json.dumps([
+                "Look for 'for row in range(5):' near line 75",
+                "Changing 5 to 7 adds two more rows of aliens"
+            ])
+        })
+
+        # Space Invaders Mission 4: Increase starting lives
+        get_or_create_mission(space_invaders.id, "Increase Starting Lives", 4, {
+            'description': "Find where `self.lives` is set in the `Player` (around line 32) and change it to 5. Give yourself a little more breathing room!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'lives',
+                'old_value': '3',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Extra lives! Use them wisely to save the planet.',
+                'failure_message': 'Find "self.lives = 3" and change 3 to 5.'
+            }),
+            'hints': json.dumps([
+                "Look for 'self.lives = 3' in the Player class",
+                "More lives mean you can get hit more times before Game Over"
+            ])
+        })
+
+        # Space Invaders Mission 5: Advanced Creative Feature
+        get_or_create_mission(space_invaders.id, "Add Your Own Creative Feature", 5, {
+            'description': "Add 5+ lines of code to create something unique. Maybe change the color of the bullets or make the player flash when they shoot!",
+            'difficulty': "advanced",
+            'validation_type': "line_count_increased",
+            'validation_data': json.dumps({
+                'min_increase': 5,
+                'success_message': 'Incredible! Earth is safe thanks to your coding skills.',
+                'failure_message': 'Add at least 5 more lines of code to create something interesting.'
+            }),
+            'hints': json.dumps([
+                "Change the player color to something like '#ff00ff'",
+                "Add a special effect when an alien is destroyed",
+                "Make the aliens change color as they get lower",
+                "Add a second type of bullet!"
+            ])
+        })
+
+        # --- Maze Missions ---
+        # Maze Mission 1: Change movement delay
+        get_or_create_mission(maze.id, "Make the Player Move Faster", 1, {
+            'description': "Find the line `if frame_count % 8 != 0:` (around line 81) and change 8 to 4. Your player will react much quicker!",
+            'difficulty': "beginner",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': '% 4 != 0',
+                'success_message': 'Zoom! Your player is much more responsive now.',
+                'failure_message': 'Change the number 8 to 4 in the movement delay line.'
+            }),
+            'hints': json.dumps([
+                "The number after % controls how many frames to wait between moves",
+                "A smaller number means less waiting and faster movement!"
+            ])
+        })
+
+        # Maze Mission 2: Change the exit color
+        get_or_create_mission(maze.id, "Change the Exit Color", 2, {
+            'description': "Find where the exit is drawn in the `draw()` function (around line 135) and change the color from `\"#44ff44\"` to `\"#ff00ff\"` (magenta).",
+            'difficulty': "beginner",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': '"#ff00ff"',
+                'success_message': 'The exit is now a bright magenta! Hard to miss!',
+                'failure_message': 'Find the color "#44ff44" and change it to "#ff00ff".'
+            }),
+            'hints': json.dumps([
+                "Look for draw_rect(cell_x, cell_y, CELL_SIZE, CELL_SIZE, \"#44ff44\")",
+                "Changing the hex color code changes the color on screen"
+            ])
+        })
+
+        # Maze Mission 3: Add a secret treasure
+        get_or_create_mission(maze.id, "Add a Secret Treasure", 3, {
+            'description': "Add another treasure to the maze! Find the `maze.grid` (around line 40) and change one of the `0`s to a `3`.",
+            'difficulty': "intermediate",
+            'validation_type': "code_pattern",
+            'validation_data': json.dumps({
+                'pattern': r'3.*3',
+                'success_message': 'More gold for the adventurer! You\'ve hidden a new treasure.',
+                'failure_message': 'Change one of the 0s in the grid to a 3 to add a treasure.'
+            }),
+            'hints': json.dumps([
+                "Look for the maze.grid definition with lots of 0s and 1s",
+                "0 is a path, 1 is a wall, and 3 is a treasure",
+                "Put a 3 anywhere there is currently a 0!"
+            ])
+        })
+
+        # Maze Mission 4: Change player color
+        get_or_create_mission(maze.id, "Customize Your Player", 4, {
+            'description': "Find where the player is drawn (around line 144) and change the color `\"#4444ff\"` to your favorite color!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'color',
+                'old_value': '"#4444ff"',
+                'new_value_pattern': r'["\'#]\w+',
+                'success_message': 'Looking sharp! Your player has a new style.',
+                'failure_message': 'Find the color "#4444ff" and change it to something else.'
+            }),
+            'hints': json.dumps([
+                "Look for the draw_rect line that uses \"#4444ff\"",
+                "You can use color names like \"red\", \"green\", or hex codes like \"#f0f0f0\""
+            ])
+        })
+
+        # Maze Mission 5: Advanced Creative Feature
+        get_or_create_mission(maze.id, "Add Your Own Creative Feature", 5, {
+            'description': "Add 5+ lines of code to the Maze game. Maybe add a timer, a move counter, or even a second floor!",
+            'difficulty': "advanced",
+            'validation_type': "line_count_increased",
+            'validation_data': json.dumps({
+                'min_increase': 5,
+                'success_message': 'You solved the maze of coding! Well done.',
+                'failure_message': 'Add at least 5 more lines of code to create something new.'
+            }),
+            'hints': json.dumps([
+                "Add a 'level' variable that increases when you find the exit",
+                "Create a new maze grid for level 2",
+                "Add a penalty if the player hits a wall",
+                "Display a 'Game Over' message if moves exceed a limit"
+            ])
+        })
+
+        # --- Tetris Missions ---
+        # Tetris Mission 1: Change the drop speed
+        get_or_create_mission(tetris.id, "Make the Game Faster", 1, {
+            'description': "Find `drop_speed = 30` (around line 125) and change it to 15. The blocks will fall twice as fast!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'drop_speed',
+                'old_value': '30',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Lightning fast! Can you keep up?',
+                'failure_message': 'Find drop_speed and change it to a smaller number.'
+            }),
+            'hints': json.dumps([
+                "A smaller drop_speed means fewer frames between drops",
+                "Try 20 or 15 for a good challenge"
+            ])
+        })
+
+        # Tetris Mission 2: Change the block size
+        get_or_create_mission(tetris.id, "Change the Block Size", 2, {
+            'description': "Find `BLOCK_SIZE = 28` (around line 7) and change it to 20. The board will look very different!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'BLOCK_SIZE',
+                'old_value': '28',
+                'new_value_pattern': r'\d+',
+                'success_message': 'Mini-Tetris! Everything is smaller now.',
+                'failure_message': 'Change BLOCK_SIZE to a different number.'
+            }),
+            'hints': json.dumps([
+                "BLOCK_SIZE is near the top of the file",
+                "If you make blocks smaller, everything will shrink to the top-left"
+            ])
+        })
+
+        # Tetris Mission 3: Make it score more points
+        get_or_create_mission(tetris.id, "Award More Points", 3, {
+            'description': "Find the `scores` list in `clear_full_lines` (around line 97) and double all the values! Who doesn't love a high score?",
+            'difficulty': "intermediate",
+            'validation_type': "code_pattern",
+            'validation_data': json.dumps({
+                'pattern': r'\[0,\s*200,\s*600,\s*1000,\s*1600\]',
+                'success_message': 'Double points! You\'re going to be a Tetris grandmaster in no time.',
+                'failure_message': 'Update the scores list to double the points for line clears.'
+            }),
+            'hints': json.dumps([
+                "Look for 'scores = [0, 100, 300, 500, 800]'",
+                "Change them to [0, 200, 600, 1000, 1600]"
+            ])
+        })
+
+        # Tetris Mission 4: Change the background color
+        get_or_create_mission(tetris.id, "Style the Game Board", 4, {
+            'description': "Find where the background is drawn (around line 236) and change `\"#1a1a1a\"` to `\"#000033\"` (dark blue).",
+            'difficulty': "beginner",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': '"#000033"',
+                'success_message': 'A deep space blue background! Looks great.',
+                'failure_message': 'Change the background color from "#1a1a1a" to "#000033".'
+            }),
+            'hints': json.dumps([
+                "Look for draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, \"#1a1a1a\")",
+                "You can use any hex color you like!"
+            ])
+        })
+
+        # Tetris Mission 5: Advanced Creative Feature
+        get_or_create_mission(tetris.id, "Add Your Own Creative Feature", 5, {
+            'description': "Add 5+ lines of code to Tetris. Maybe add a 'hold' feature, different colors for levels, or a combo system!",
+            'difficulty': "advanced",
+            'validation_type': "line_count_increased",
+            'validation_data': json.dumps({
+                'min_increase': 5,
+                'success_message': 'A masterpiece! You\'ve truly mastered the game of Tetris.',
+                'failure_message': 'Add at least 5 more lines of code to the game.'
+            }),
+            'hints': json.dumps([
+                "Add a level variable that increases every 5 lines",
+                "Change the color palette as levels increase",
+                "Add a special effect when a Tetris (4 lines) is cleared",
+                "Keep track of the time played"
+            ])
+        })
+
         print("Database initialization complete.")
 
 def signal_handler(sig, frame):
