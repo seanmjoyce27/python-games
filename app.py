@@ -9,6 +9,7 @@ import os
 import signal
 import sys
 import atexit
+import json
 import warnings
 
 app = Flask(__name__)
@@ -521,9 +522,30 @@ def init_db():
     with app.app_context():
         db.create_all()
 
-        # Check if games already exist
-        if Game.query.count() > 0:
-            return
+        # Individual game seeding for robustness
+        def get_or_create_game(name, display_name, description, template_code):
+            game = Game.query.filter_by(name=name).first()
+            if not game:
+                game = Game(
+                    name=name,
+                    display_name=display_name,
+                    description=description,
+                    template_code=template_code
+                )
+                db.session.add(game)
+                db.session.commit()
+                print(f"✅ Seeded game: {display_name}")
+            return game
+
+        # Helper to add mission if missing
+        def get_or_create_mission(game_id, title, order, data):
+            mission = Mission.query.filter_by(game_id=game_id, title=title).first()
+            if not mission:
+                mission = Mission(game_id=game_id, title=title, **data)
+                db.session.add(mission)
+                db.session.commit()
+                print(f"✅ Seeded mission: {title}")
+            return mission
 
         # 1. Snake Game
         snake_template = '''# Snake Game
@@ -712,13 +734,12 @@ def draw():
 # TODO: Can you make the snake start longer?
 '''
 
-        snake = Game(
+        snake = get_or_create_game(
             name='snake',
             display_name='Snake Game',
             description='Classic snake game - eat food and grow!',
             template_code=snake_template
         )
-        db.session.add(snake)
 
         # 2. Pong Game (2-player)
         pong_template = '''# Pong Game - Two Player!
@@ -926,13 +947,12 @@ def draw():
 # TODO: Add sound effects when ball hits paddle!
 '''
 
-        pong = Game(
+        pong = get_or_create_game(
             name='pong',
             display_name='Pong (2-Player)',
             description='Classic 2-player Pong! First to 5 points wins.',
             template_code=pong_template
         )
-        db.session.add(pong)
 
         # 3. Space Invaders
         space_invaders_template = '''# Space Invaders
@@ -1156,13 +1176,12 @@ def draw():
 # TODO: Add shields for the player to hide behind
 '''
 
-        space_invaders = Game(
+        space_invaders = get_or_create_game(
             name='space_invaders',
             display_name='Space Invaders',
             description='Shoot the aliens before they reach Earth!',
             template_code=space_invaders_template
         )
-        db.session.add(space_invaders)
 
         # 4. Maze Game
         maze_template = '''# Maze Game
@@ -1331,13 +1350,12 @@ def draw():
 # TODO: Try making a harder maze pattern
 '''
 
-        maze = Game(
+        maze = get_or_create_game(
             name='maze',
             display_name='Maze Adventure',
             description='Navigate the maze and find the exit!',
             template_code=maze_template
         )
-        db.session.add(maze)
 
         # 5. Tetris
         tetris_template = '''# Tetris
@@ -1653,135 +1671,105 @@ def draw():
 # TODO: Track and display high score
 '''
 
-        tetris = Game(
+        tetris = get_or_create_game(
             name='tetris',
             display_name='Tetris',
             description='Stack blocks and clear lines! Classic puzzle game.',
             template_code=tetris_template
         )
-        db.session.add(tetris)
-
-        # Commit games first to get IDs
-        db.session.commit()
-
-        # Add missions for Snake game
-        import json
 
         # Snake Mission 1: Change speed
-        mission1 = Mission(
-            game_id=snake.id,
-            title="Change the Snake's Speed",
-            description="Find the `speed` variable (around line 8) and change it to a different number. Try 3 for slow, 10 for fast, or 20 for super fast! What feels best to you?",
-            order=1,
-            difficulty="beginner",
-            validation_type="variable_changed",
-            validation_data=json.dumps({
+        get_or_create_mission(snake.id, "Change the Snake's Speed", 1, {
+            'description': "Find the `speed` variable (around line 8) and change it to a different number. Try 3 for slow, 10 for fast, or 20 for super fast! What feels best to you?",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
                 'variable': 'speed',
                 'old_value': '5',
                 'new_value_pattern': r'\d+',
                 'success_message': 'Awesome! You changed the speed. Try running the game to see how it feels!',
                 'failure_message': 'Find the speed variable and change it to a different number.'
             }),
-            hints=json.dumps([
+            'hints': json.dumps([
                 "Look for a line that says 'speed = 5'",
                 "Try changing 5 to 10 to make the snake faster",
                 "Numbers like 3, 8, 15, or 20 all work - pick what's fun!"
             ])
-        )
-        db.session.add(mission1)
+        })
 
         # Snake Mission 2: Change grid size
-        mission2 = Mission(
-            game_id=snake.id,
-            title="Make the Game Board Bigger or Smaller",
-            description="Find `GRID_SIZE = 20` (around line 10) and change it. Try 15 for a smaller board or 25 for a bigger board!",
-            order=2,
-            difficulty="beginner",
-            validation_type="variable_changed",
-            validation_data=json.dumps({
+        get_or_create_mission(snake.id, "Make the Game Board Bigger or Smaller", 2, {
+            'description': "Find `GRID_SIZE = 20` (around line 10) and change it. Try 15 for a smaller board or 25 for a bigger board!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
                 'variable': 'GRID_SIZE',
                 'old_value': '20',
                 'new_value_pattern': r'\d+',
                 'success_message': 'Perfect! You resized the game board. The snake has more (or less) room to move now!',
                 'failure_message': 'Look for GRID_SIZE and change it from 20 to another number.'
             }),
-            hints=json.dumps([
+            'hints': json.dumps([
                 "GRID_SIZE controls how big the game board is",
                 "Smaller numbers = smaller board, bigger numbers = bigger board",
                 "Try 15, 25, or 30 and see what you like!"
             ])
-        )
-        db.session.add(mission2)
+        })
 
         # Snake Mission 3: Make snake longer at start
-        mission3 = Mission(
-            game_id=snake.id,
-            title="Start with a Longer Snake",
-            description="Find where the snake's segments list is created and add more segments. Make your snake start with 5 segments instead of 3!",
-            order=3,
-            difficulty="intermediate",
-            validation_type="code_pattern",
-            validation_data=json.dumps({
+        get_or_create_mission(snake.id, "Start with a Longer Snake", 3, {
+            'description': "Find where the snake's segments list is created and add more segments. Make your snake start with 5 segments instead of 3!",
+            'difficulty': "intermediate",
+            'validation_type': "code_pattern",
+            'validation_data': json.dumps({
                 'pattern': r'self\.segments\s*=\s*\[[^\]]*,\s*[^\]]*,\s*[^\]]*,\s*[^\]]*,',
                 'success_message': 'Excellent! Your snake now starts longer. That makes the game harder!',
                 'failure_message': 'Add more coordinate tuples to the segments list. Each one is like (x, y).'
             }),
-            hints=json.dumps([
+            'hints': json.dumps([
                 "Look for self.segments = [(10,10), (9,10), (8,10)]",
                 "Add more tuples like (7,10), (6,10) to make it longer",
                 "Each tuple represents one segment of the snake"
             ])
-        )
-        db.session.add(mission3)
+        })
 
         # Snake Mission 4: Add score tracking
-        mission4 = Mission(
-            game_id=snake.id,
-            title="Add a Score Variable",
-            description="Add a new variable called 'score' to track points. Initialize it to 0 in the __init__ method, then increase it by 10 each time the snake eats food!",
-            order=4,
-            difficulty="intermediate",
-            validation_type="code_contains",
-            validation_data=json.dumps({
+        get_or_create_mission(snake.id, "Add a Score Variable", 4, {
+            'description': "Add a new variable called 'score' to track points. Initialize it to 0 in the __init__ method, then increase it by 10 each time the snake eats food!",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
                 'text': 'self.score',
                 'success_message': 'Great job! You added score tracking. Now players can see their progress!',
                 'failure_message': 'Add "self.score = 0" in the Snake __init__ method.'
             }),
-            hints=json.dumps([
+            'hints': json.dumps([
                 "In the __init__ method, add: self.score = 0",
                 "In the grow() method, add: self.score += 10",
                 "You can display the score using draw_text in the draw() function"
             ])
-        )
-        db.session.add(mission4)
+        })
 
-        # Snake Mission 5: Add new features
-        mission5 = Mission(
-            game_id=snake.id,
-            title="Add Your Own Creative Feature",
-            description="Now it's your turn to be creative! Add at least 5 new lines of code that do something interesting. Ideas: change colors, add obstacles, make the snake rainbow, or anything you can imagine!",
-            order=5,
-            difficulty="advanced",
-            validation_type="line_count_increased",
-            validation_data=json.dumps({
+        # Snake Mission 5: Add Your Own Creative Feature
+        get_or_create_mission(snake.id, "Add Your Own Creative Feature", 5, {
+            'description': "Now it's your turn to be creative! Add at least 5 new lines of code that do something interesting. Ideas: change colors, add obstacles, make the snake rainbow, or anything you can imagine!",
+            'difficulty': "advanced",
+            'validation_type': "line_count_increased",
+            'validation_data': json.dumps({
                 'min_increase': 5,
                 'success_message': 'Amazing! You added your own creative code. You\'re becoming a real game developer!',
                 'failure_message': 'Add at least 5 more lines of code to create something new and interesting.'
             }),
-            hints=json.dumps([
+            'hints': json.dumps([
                 "Try changing the snake color in the draw() function",
                 "Add obstacles that the snake must avoid",
                 "Make the food change colors or size",
                 "Add a timer or level system",
                 "Be creative - there's no wrong answer!"
             ])
-        )
-        db.session.add(mission5)
+        })
 
-        # Commit missions
-        db.session.commit()
-
-        print("Database initialized with 5 games and missions for Snake!")
+        print("Database initialization complete.")
 
 def signal_handler(sig, frame):
     """Handle SIGINT (Ctrl+C) and SIGTERM gracefully"""
