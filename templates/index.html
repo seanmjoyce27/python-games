@@ -9,23 +9,20 @@
 <body>
     <div class="container">
         <header>
-            <h1>🎮 Python Game Builder</h1>
-            <p>Learn Python by creating awesome games!</p>
+            <div>
+                <h1>🎮 Python Game Builder</h1>
+                <p>Learn Python by creating awesome games!</p>
+            </div>
+            <a href="/admin" style="position: absolute; top: 2rem; right: 2rem; color: #888; text-decoration: none; font-size: 0.875rem;">Admin</a>
         </header>
 
         <section class="user-section">
-            <h2>Who's Playing?</h2>
+            <h2>Choose Your Coder</h2>
             <div class="user-selector">
-                {% if users %}
-                    <div class="user-list">
-                        {% for user in users %}
-                        <button class="user-btn" data-user-id="{{ user.id }}">
-                            {{ user.username }}
-                        </button>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                <button id="newUserBtn" class="btn-primary">+ New Player</button>
+                <div id="activeUsers" class="user-list">
+                    <!-- Active users will be loaded here -->
+                </div>
+                <button id="newUserBtn" class="btn-primary">+ Choose New Avatar</button>
             </div>
         </section>
 
@@ -45,79 +42,149 @@
         </section>
     </div>
 
-    <div id="newUserModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Create New Player</h2>
-            <input type="text" id="newUsername" placeholder="Enter your name" />
-            <div class="modal-actions">
-                <button id="createUserBtn" class="btn-primary">Create</button>
-                <button id="cancelUserBtn" class="btn-secondary">Cancel</button>
+    <!-- Avatar Selection Modal -->
+    <div id="avatarModal" class="modal" style="display: none;">
+        <div class="modal-content avatar-modal">
+            <div class="modal-header">
+                <h2>🚀 Choose Your Coding Avatar</h2>
+                <button id="closeAvatarModal" class="close-btn">×</button>
             </div>
-            <div id="userError" class="error-message"></div>
+            <div class="avatar-grid" id="avatarGrid">
+                <p class="loading">Loading avatars...</p>
+            </div>
         </div>
     </div>
 
     <script>
         let selectedUserId = null;
 
-        // User selection
-        document.querySelectorAll('.user-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                selectedUserId = this.dataset.userId;
-                document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('selected'));
-                this.classList.add('selected');
-                document.getElementById('gamesSection').style.display = 'block';
-            });
-        });
+        // Load active users on page load
+        async function loadActiveUsers() {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
 
-        // New user modal
-        document.getElementById('newUserBtn').addEventListener('click', () => {
-            document.getElementById('newUserModal').style.display = 'flex';
-            document.getElementById('newUsername').value = '';
-            document.getElementById('userError').textContent = '';
-        });
+                const container = document.getElementById('activeUsers');
 
-        document.getElementById('cancelUserBtn').addEventListener('click', () => {
-            document.getElementById('newUserModal').style.display = 'none';
-        });
+                if (users.length === 0) {
+                    container.innerHTML = '<p class="info">No coders yet! Choose an avatar to get started.</p>';
+                    return;
+                }
 
-        document.getElementById('createUserBtn').addEventListener('click', async () => {
-            const username = document.getElementById('newUsername').value.trim();
-            if (!username) {
-                document.getElementById('userError').textContent = 'Please enter a name';
-                return;
+                container.innerHTML = users.map(user => `
+                    <div class="avatar-card active" data-user-id="${user.id}">
+                        <div class="avatar-emoji" style="background: ${user.avatar.color}">
+                            ${user.avatar.emoji}
+                        </div>
+                        <div class="avatar-name">${user.avatar.name}</div>
+                    </div>
+                `).join('');
+
+                // Add click handlers
+                document.querySelectorAll('.avatar-card.active').forEach(card => {
+                    card.addEventListener('click', function() {
+                        selectedUserId = this.dataset.userId;
+                        document.querySelectorAll('.avatar-card.active').forEach(c => c.classList.remove('selected'));
+                        this.classList.add('selected');
+                        document.getElementById('gamesSection').style.display = 'block';
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error loading users:', error);
             }
+        }
 
+        // Load avatars for selection
+        async function loadAvatars() {
+            try {
+                const response = await fetch('/api/avatars');
+                const avatars = await response.json();
+
+                const grid = document.getElementById('avatarGrid');
+
+                grid.innerHTML = avatars.map(avatar => `
+                    <div class="avatar-card ${avatar.available ? 'available' : 'taken'}"
+                         data-avatar-id="${avatar.id}"
+                         ${!avatar.available ? 'title="Already chosen by another coder"' : ''}>
+                        <div class="avatar-emoji" style="background: ${avatar.color}">
+                            ${avatar.emoji}
+                        </div>
+                        <div class="avatar-name">${avatar.name}</div>
+                        ${!avatar.available ? '<div class="taken-badge">Taken</div>' : ''}
+                    </div>
+                `).join('');
+
+                // Add click handlers only to available avatars
+                document.querySelectorAll('.avatar-card.available').forEach(card => {
+                    card.addEventListener('click', async function() {
+                        const avatarId = parseInt(this.dataset.avatarId);
+                        await createUser(avatarId);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error loading avatars:', error);
+                document.getElementById('avatarGrid').innerHTML = '<p class="error">Failed to load avatars</p>';
+            }
+        }
+
+        // Create user with selected avatar
+        async function createUser(avatarId) {
             try {
                 const response = await fetch('/api/users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
+                    body: JSON.stringify({ avatar_id: avatarId })
                 });
 
-                const data = await response.json();
-
                 if (response.ok) {
-                    window.location.reload();
+                    const user = await response.json();
+                    document.getElementById('avatarModal').style.display = 'none';
+                    await loadActiveUsers();
+
+                    // Auto-select the new user
+                    setTimeout(() => {
+                        const userCard = document.querySelector(`[data-user-id="${user.id}"]`);
+                        if (userCard) {
+                            userCard.click();
+                        }
+                    }, 100);
                 } else {
-                    document.getElementById('userError').textContent = data.error;
+                    const error = await response.json();
+                    alert(error.error || 'Failed to create user');
                 }
             } catch (error) {
-                document.getElementById('userError').textContent = 'Error creating user';
+                console.error('Error creating user:', error);
+                alert('Failed to create user');
             }
+        }
+
+        // Show avatar modal
+        document.getElementById('newUserBtn').addEventListener('click', () => {
+            document.getElementById('avatarModal').style.display = 'flex';
+            loadAvatars();
+        });
+
+        // Close modal
+        document.getElementById('closeAvatarModal').addEventListener('click', () => {
+            document.getElementById('avatarModal').style.display = 'none';
         });
 
         // Game selection
         document.querySelectorAll('.btn-play').forEach(btn => {
             btn.addEventListener('click', function() {
                 if (!selectedUserId) {
-                    alert('Please select a player first!');
+                    alert('Please select a coder first!');
                     return;
                 }
                 const gameId = this.dataset.gameId;
                 window.location.href = `/game/${gameId}?user_id=${selectedUserId}`;
             });
         });
+
+        // Load active users on page load
+        loadActiveUsers();
     </script>
 </body>
 </html>

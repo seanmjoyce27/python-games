@@ -12,13 +12,43 @@ import atexit
 import json
 import warnings
 
+# Load environment variables from .env file
+load_dotenv()
+
 app = Flask(__name__)
+
+# Predefined kid-friendly coding avatars with sci-fi names
+AVATAR_OPTIONS = [
+    {"id": 1, "name": "Coremind Architect", "emoji": "🤖", "color": "#4A90E2"},
+    {"id": 2, "name": "Astral Compiler", "emoji": "🚀", "color": "#E94B3C"},
+    {"id": 3, "name": "Event Horizon Pathfinder", "emoji": "👾", "color": "#9B59B6"},
+    {"id": 4, "name": "Neon Grid Pathfinder", "emoji": "🛸", "color": "#2ECC71"},
+    {"id": 5, "name": "Hexblade Sentinel", "emoji": "⚔️", "color": "#F39C12"},
+    {"id": 6, "name": "Chronoloop Warden", "emoji": "🔁", "color": "#1ABC9C"},
+    {"id": 7, "name": "Glitch Reaper", "emoji": "🐛", "color": "#E74C3C"},
+    {"id": 8, "name": "Logic Sharpshooter", "emoji": "🎯", "color": "#3498DB"},
+    {"id": 9, "name": "Lambda Trickster", "emoji": "🦊", "color": "#E67E22"},
+    {"id": 10, "name": "Dynamic Coil", "emoji": "🐍", "color": "#27AE60"},
+    {"id": 11, "name": "Paradox Engineer", "emoji": "⚡", "color": "#9B59B6"},
+    {"id": 12, "name": "Glyphweaver", "emoji": "⭐", "color": "#F1C40F"},
+    {"id": 13, "name": "Twinbit Automaton", "emoji": "🎮", "color": "#34495E"},
+    {"id": 14, "name": "Faultline Mechanic", "emoji": "🔧", "color": "#16A085"},
+    {"id": 15, "name": "Terminal Warlord", "emoji": "🎖️", "color": "#C0392B"}
+]
 
 # Replit-optimized configuration
 # Use absolute path for SQLite database
 basedir = os.path.abspath(os.path.dirname(__file__))
-instance_path = os.path.join(basedir, 'instance')
-os.makedirs(instance_path, exist_ok=True)
+
+# Check if running on Replit (has REPL_ID environment variable)
+if os.environ.get('REPL_ID'):
+    # On Replit, use the root directory which persists
+    instance_path = basedir
+    print("🔵 Running on Replit - database will persist in project root")
+else:
+    # Local development - use instance folder
+    instance_path = os.path.join(basedir, 'instance')
+    os.makedirs(instance_path, exist_ok=True)
 
 db_path = os.path.join(instance_path, "python_games.db")
 
@@ -41,8 +71,13 @@ CORS(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    avatar_id = db.Column(db.Integer, nullable=False, default=1)  # References AVATAR_OPTIONS
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     code_versions = db.relationship('CodeVersion', backref='user', lazy=True, cascade='all, delete-orphan')
+
+    def get_avatar(self):
+        """Get avatar data for this user"""
+        return next((a for a in AVATAR_OPTIONS if a['id'] == self.avatar_id), AVATAR_OPTIONS[0])
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -109,13 +144,16 @@ def index():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_panel():
     """Admin dashboard with password protection"""
-    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
-    
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'python123')
+
     if request.method == 'POST' and not session.get('admin_authenticated'):
-        if request.form.get('password') == admin_password:
+        entered_password = request.form.get('password', '')
+        if entered_password == admin_password:
             session['admin_authenticated'] = True
             return redirect(url_for('admin_panel'))
         else:
+            # Debug info (remove in production)
+            print(f"Admin login failed. Expected: '{admin_password}', Got: '{entered_password}'")
             return render_template('admin.html', authenticated=False, error="Incorrect password")
 
     if not session.get('admin_authenticated'):
@@ -179,27 +217,59 @@ def health_check():
     return jsonify({'status': 'ok'}), 200
 
 # API Endpoints
+@app.route('/api/avatars', methods=['GET'])
+def get_avatars():
+    """Get all available avatars"""
+    # Get list of already used avatar IDs
+    used_avatar_ids = [u.avatar_id for u in User.query.all()]
+
+    # Mark avatars as available or taken
+    avatars_with_status = []
+    for avatar in AVATAR_OPTIONS:
+        avatars_with_status.append({
+            **avatar,
+            'available': avatar['id'] not in used_avatar_ids
+        })
+
+    return jsonify(avatars_with_status)
+
 @app.route('/api/users', methods=['GET', 'POST'])
 def manage_users():
     """Get all users or create a new user"""
     if request.method == 'POST':
         data = request.json
-        username = data.get('username')
+        avatar_id = data.get('avatar_id')
 
-        if not username or len(username) < 2:
-            return jsonify({'error': 'Username must be at least 2 characters'}), 400
+        if not avatar_id or avatar_id < 1 or avatar_id > 15:
+            return jsonify({'error': 'Invalid avatar selection'}), 400
 
-        if User.query.filter_by(username=username).first():
-            return jsonify({'error': 'Username already exists'}), 400
+        # Check if avatar is already taken
+        if User.query.filter_by(avatar_id=avatar_id).first():
+            return jsonify({'error': 'This avatar is already in use'}), 400
 
-        user = User(username=username)
+        # Get avatar data
+        avatar = next((a for a in AVATAR_OPTIONS if a['id'] == avatar_id), None)
+        if not avatar:
+            return jsonify({'error': 'Avatar not found'}), 400
+
+        user = User(username=avatar['name'], avatar_id=avatar_id)
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({'id': user.id, 'username': user.username}), 201
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'avatar_id': user.avatar_id,
+            'avatar': avatar
+        }), 201
 
     users = User.query.all()
-    return jsonify([{'id': u.id, 'username': u.username} for u in users])
+    return jsonify([{
+        'id': u.id,
+        'username': u.username,
+        'avatar_id': u.avatar_id,
+        'avatar': u.get_avatar()
+    } for u in users])
 
 @app.route('/api/games', methods=['GET'])
 def get_games():
