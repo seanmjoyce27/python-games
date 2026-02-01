@@ -17,7 +17,7 @@ def pytest_sessionstart(session):
     try:
         from port_utils import cleanup_port
         # Clean up default port before tests
-        port = int(os.environ.get('PORT', 5000))
+        port = int(os.environ.get('PORT', 8443))
         cleanup_port(port)
     except Exception:
         pass  # Ignore cleanup errors, tests will handle it
@@ -30,7 +30,7 @@ def pytest_sessionfinish(session, exitstatus):
     try:
         from port_utils import cleanup_port
         # Clean up default port after tests
-        port = int(os.environ.get('PORT', 5000))
+        port = int(os.environ.get('PORT', 8443))
         cleanup_port(port)
         # Clean up any test ports
         for port in [8444, 8445, 8446]:

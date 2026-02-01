@@ -144,7 +144,7 @@ def find_available_port(start_port=None, max_attempts=100):
     Find an available port
     """
     if start_port is None:
-        start_port = int(os.environ.get('PORT', 5000))
+        start_port = int(os.environ.get('PORT', 8443))
 
     Args:
         start_port (int): Port to start searching from
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
     else:
-        port = int(os.environ.get('PORT', 5000))
+        port = int(os.environ.get('PORT', 8443))
 
     print(f"Port Cleanup Utility for Python Game Builder")
     print(f"=" * 50)
