@@ -260,10 +260,10 @@ def get_leaderboard():
 
     for user in users:
         # Count completed missions for this user
-        completed_count = UserMissionProgress.query.filter_by(
+        completed_count = db.session.query(db.func.count(UserMissionProgress.id)).filter_by(
             user_id=user.id,
             status='completed'
-        ).count()
+        ).scalar() or 0
 
         leaderboard.append({
             'user_id': user.id,
@@ -2456,16 +2456,27 @@ class Player:
         self.cursor_dx = 1
         self.cursor_dy = 0
 
+    def get_cursor_targets(self):
+        """Get list of world positions the cursor targets for mining/placing.
+        Returns a list of (x, y) tuples, ordered by priority."""
+        targets = []
+        if self.cursor_dy < 0:
+            # Aiming up: block above head
+            targets.append((self.x, self.y - 1))
+        elif self.cursor_dy > 0:
+            # Aiming down: block below feet
+            targets.append((self.x, self.y + self.height))
+        else:
+            # Aiming sideways: head level then feet level
+            nx = self.x + self.cursor_dx
+            targets.append((nx, self.y))      # Head level
+            targets.append((nx, self.y + 1))  # Feet level
+        return targets
+
     def get_cursor_pos(self):
-        """Get world position of the action cursor"""
-        cx = self.x + self.cursor_dx
-        cy = self.y + self.cursor_dy
-        # When aiming down, target below the player's feet (player is 2 blocks tall)
-        if self.cursor_dy > 0:
-            cy = self.y + self.height  # self.height is 2, so this is feet + 1
-        # When aiming sideways, target at head level (player.y)
-        # When aiming up, target above the head (player.y - 1)
-        return (cx, cy)
+        """Get primary cursor position for display"""
+        targets = self.get_cursor_targets()
+        return targets[0] if targets else (self.x, self.y)
 
 class World:
     def __init__(self):
@@ -2662,35 +2673,31 @@ def update():
     elif is_key_pressed('4'):
         player.selected_block = 4
 
-    # Place block with SPACE
+    # Place block with SPACE - tries each cursor target in priority order
     if is_key_pressed(' ') and frame_count % 10 == 0:
-        cx, cy = player.get_cursor_pos()
-        if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
-            if world.get_block(cx, cy) == 0:
-                # Check inventory
-                sel = player.selected_block
-                if player.inventory.get(sel, 0) > 0:
-                    world.set_block(cx, cy, sel)
-                    player.inventory[sel] -= 1
-                    show_message(f"Placed {BLOCK_TYPES[sel][0]}", 40)
+        for cx, cy in player.get_cursor_targets():
+            if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
+                if world.get_block(cx, cy) == 0:
+                    sel = player.selected_block
+                    if player.inventory.get(sel, 0) > 0:
+                        world.set_block(cx, cy, sel)
+                        player.inventory[sel] -= 1
+                        show_message(f"Placed {BLOCK_TYPES[sel][0]}", 40)
+                        break  # Only place one block per press
 
-    # Break block with E
+    # Break block with E - tries each cursor target in priority order
     if is_key_pressed('e') or is_key_pressed('E'):
         if frame_count % 10 == 0:
-            cx, cy = player.get_cursor_pos()
-            block = world.get_block(cx, cy)
-            
-            # Smart mining: if trying to mine air to the side at head level, try feet level
-            if block == 0 and player.cursor_dx != 0 and player.cursor_dy == 0:
-                cy += 1
-                block = world.get_block(cx, cy)
-
-            if block > 0 and BLOCK_TYPES.get(block, (None, None, False))[2]:
-                world.set_block(cx, cy, 0)
-                if block in player.inventory:
-                    player.inventory[block] = player.inventory.get(block, 0) + 1
-                score += 10
-                show_message(f"Mined {BLOCK_TYPES[block][0]}! +10", 40)
+            for cx, cy in player.get_cursor_targets():
+                if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
+                    block = world.get_block(cx, cy)
+                    if block > 0 and BLOCK_TYPES.get(block, (None, None, False))[2]:
+                        world.set_block(cx, cy, 0)
+                        if block in player.inventory:
+                            player.inventory[block] = player.inventory.get(block, 0) + 1
+                        score += 10
+                        show_message(f"Mined {BLOCK_TYPES[block][0]}! +10", 40)
+                        break  # Only break one block per press
 
     # Gravity
     gravity_timer += 1
@@ -2759,14 +2766,14 @@ def draw():
                 draw_rect(bx, by, BLOCK_SIZE, 1, "#00000033")
                 draw_rect(bx, by, 1, BLOCK_SIZE, "#00000033")
 
-    # Draw cursor highlight
-    cx, cy = player.get_cursor_pos()
-    if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
-        draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, "#ffffff44")
-        draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, BLOCK_SIZE, 2, "#ffffff")
-        draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, 2, BLOCK_SIZE, "#ffffff")
-        draw_rect(cx * BLOCK_SIZE + BLOCK_SIZE - 2, cy * BLOCK_SIZE, 2, BLOCK_SIZE, "#ffffff")
-        draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE + BLOCK_SIZE - 2, BLOCK_SIZE, 2, "#ffffff")
+    # Draw cursor highlight on all target blocks
+    for cx, cy in player.get_cursor_targets():
+        if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
+            draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, "#ffffff44")
+            draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, BLOCK_SIZE, 2, "#ffffff")
+            draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE, 2, BLOCK_SIZE, "#ffffff")
+            draw_rect(cx * BLOCK_SIZE + BLOCK_SIZE - 2, cy * BLOCK_SIZE, 2, BLOCK_SIZE, "#ffffff")
+            draw_rect(cx * BLOCK_SIZE, cy * BLOCK_SIZE + BLOCK_SIZE - 2, BLOCK_SIZE, 2, "#ffffff")
 
     # Draw player (body)
     px = player.x * BLOCK_SIZE
