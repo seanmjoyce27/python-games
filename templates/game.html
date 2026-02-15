@@ -60,6 +60,7 @@
                     <h3>Your Code</h3>
                     <button id="runBtn" class="btn-run">▶ Run Code</button>
                 </div>
+                <div id="gameError" class="error-message"></div>
                 <textarea id="codeEditor">{{ game.template_code }}</textarea>
                 <div class="editor-footer">
                     <span id="lineCount"></span>
@@ -78,7 +79,6 @@
                     <canvas id="canvas" width="600" height="700"></canvas>
                     <div id="gameOutput"></div>
                 </div>
-                <div id="gameError" class="error-message"></div>
             </div>
         </div>
     </div>
