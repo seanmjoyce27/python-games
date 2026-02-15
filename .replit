@@ -8,8 +8,9 @@ channel = "stable-25_05"
 REINT_DB = "false"
 
 [deployment]
-run = ["sh", "-c", "gunicorn -b 0.0.0.0:$PORT app:app -c gunicorn.conf.py"]
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "--config", "gunicorn.conf.py", "app:app"]
 healthcheckPath = "/healthz"
+deploymentTarget = "autoscale"
 
 [[ports]]
 localPort = 443
