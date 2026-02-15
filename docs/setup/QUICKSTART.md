@@ -54,7 +54,7 @@ That's it! The app will:
 ### 2. Setup (5 minutes)
 ```bash
 # Clone or download this repo
-cd python-games
+cd python3-games
 
 # Create virtual environment
 python3 -m venv venv
@@ -70,7 +70,7 @@ pip install -r requirements.txt
 
 ### 3. Run
 ```bash
-python app.py
+python3 app.py
 ```
 
 Open your browser to: **http://localhost:8443**
@@ -82,7 +82,7 @@ Open your browser to: **http://localhost:8443**
 ### Day 1: Meet Snake 🐍
 **Goal**: Change one thing
 
-```python
+```python3
 # Find this line (line 8):
 self.speed = 5
 
@@ -129,7 +129,7 @@ self.speed = 20  # Super fast!
 ### Week 1 Challenge 🏆
 **Goal**: Make snake start longer
 
-```python
+```python3
 # Find this line (line 8):
 self.segments = [(10, 10)]
 
@@ -256,13 +256,13 @@ self.segments = [(10, 10), (9, 10), (8, 10)]
 ### Admin Tools
 ```bash
 # Show stats
-python admin_utils.py stats
+python3 admin_utils.py stats
 
 # List users
-python admin_utils.py list-users
+python3 admin_utils.py list-users
 
 # Show user's progress
-python admin_utils.py user-history "John"
+python3 admin_utils.py user-history "John"
 ```
 
 ### Common Questions
@@ -320,13 +320,13 @@ Your child is learning if they:
 ## Resources
 
 ### Keep Learning
-- Python documentation: python.org
+- Python documentation: python3.org
 - PyGame for games: pygame.org
 - Code challenges: codingame.com
 - Visual Python: scratch.mit.edu (younger)
 
 ### Communities
-- r/learnpython (Reddit)
+- r/learnpython3 (Reddit)
 - Python Discord
 - Local CoderDojo clubs
 - School coding clubs

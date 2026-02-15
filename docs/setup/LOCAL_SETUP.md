@@ -46,7 +46,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 # Copy output to SECRET_KEY in .env
 
 # 2. Run the app (development mode)
-python app.py
+python3 app.py
 
 # OR run in production mode
 gunicorn app:app -c gunicorn.conf.py
@@ -216,7 +216,7 @@ Before deploying or using:
 - [ ] Can create test database
 - [ ] Virtual environment activated
 
-**All checked?** ✅ Safe to run `python app.py`
+**All checked?** ✅ Safe to run `python3 app.py`
 
 ---
 
@@ -240,7 +240,7 @@ python-games/instance/python_games.db
 ls -lh instance/python_games.db
 
 # View statistics
-python admin_utils.py stats
+python3 admin_utils.py stats
 
 # Inspect directly (optional)
 sqlite3 instance/python_games.db
@@ -356,7 +356,7 @@ pytest tests/test_api.py -v
 ### Database Statistics
 
 ```bash
-python admin_utils.py stats
+python3 admin_utils.py stats
 ```
 
 Output example:
@@ -379,23 +379,48 @@ Output example:
 ### User Management
 
 ```bash
-# List all users
-python admin_utils.py list-users
+# List users
+python3 admin_utils.py list-users
 
-# View user's history
-python admin_utils.py user-history "John"
+# Show user's progress
+python3 admin_utils.py user-history "John"
+```
 
+### 🔐 Admin Access Setup
+
+#### Default Credentials
+- **URL**: `http://localhost:8443/admin`
+- **Password**: `python123`
+
+#### Change Password
+Edit `.env` file:
+```bash
+ADMIN_PASSWORD=your_new_password
+```
+
+#### Port Configuration
+The app runs on port **8443** by default. To change it:
+
+1. Edit `.env`:
+   ```
+   PORT=5000
+   ```
+2. Or set environment variable:
+   ```bash
+   export PORT=5000
+   python3 app.py
+   ```
 # Create user (CLI)
-python admin_utils.py create-user "Alice"
+python3 admin_utils.py create-user "Alice"
 
 # Delete user (with confirmation)
-python admin_utils.py delete-user "OldUser"
+python3 admin_utils.py delete-user "OldUser"
 ```
 
 ### Backup Information
 
 ```bash
-python admin_utils.py backup-info
+python3 admin_utils.py backup-info
 ```
 
 Shows:
@@ -412,7 +437,7 @@ Shows:
 
 ```bash
 # Create backup with date
-cp instance/python_games.db backups/python_games_$(date +%Y%m%d).db
+cp instance/python_games.db backups/python3_games_$(date +%Y%m%d).db
 
 # Verify
 ls -lh backups/
@@ -424,10 +449,10 @@ ls -lh backups/
 # Stop app (Ctrl+C)
 
 # Restore
-cp backups/python_games_20260131.db instance/python_games.db
+cp backups/python3_games_20260131.db instance/python_games.db
 
 # Restart
-python app.py
+python3 app.py
 ```
 
 ### SQL Export/Import
@@ -458,7 +483,7 @@ pip install -r requirements.txt
 
 ```bash
 # Kill running instance
-pkill -f "python app.py"
+pkill -f "python3 app.py"
 
 # Or restart terminal
 ```
@@ -493,14 +518,14 @@ mkdir -p instance
 python3 --version
 
 # Run with debug
-FLASK_ENV=development python app.py
+FLASK_ENV=development python3 app.py
 ```
 
 ---
 
 ## 🎯 First-Time Checklist
 
-After running `python app.py`:
+After running `python3 app.py`:
 
 - [ ] Open http://localhost:8443
 - [ ] See "Python Game Builder" page
@@ -514,7 +539,7 @@ After running `python app.py`:
 - [ ] Add message "Test save"
 - [ ] Click "📜 History"
 - [ ] See save in history
-- [ ] Run: `python admin_utils.py stats`
+- [ ] Run: `python3 admin_utils.py stats`
 - [ ] Verify 1 user, 1 save shown
 
 **All working?** ✅ You're ready to code!
@@ -585,7 +610,7 @@ sqlite3 instance/python_games.db "PRAGMA database_list;"
 source venv/bin/activate
 
 # 2. Start app (auto-reload enabled)
-FLASK_ENV=development python app.py
+FLASK_ENV=development python3 app.py
 
 # 3. Make changes
 # Edit app.py, templates/, static/
@@ -594,7 +619,7 @@ FLASK_ENV=development python app.py
 # Just refresh browser
 
 # 5. Check database
-python admin_utils.py stats
+python3 admin_utils.py stats
 
 # 6. Run tests
 pytest tests/ -v
@@ -616,7 +641,7 @@ source venv/bin/activate
 cp .env.example .env
 # Edit .env with SECRET_KEY
 pip install -r requirements.txt
-python app.py
+python3 app.py
 ```
 
 ---
@@ -631,7 +656,7 @@ cp .env.example .env
 pip install -r requirements.txt
 
 # Run (development)
-python app.py
+python3 app.py
 
 # Run (production)
 gunicorn app:app -c gunicorn.conf.py
@@ -641,25 +666,25 @@ pytest tests/ -v
 ./run_tests.sh
 
 # Admin
-python admin_utils.py stats
-python admin_utils.py list-users
-python admin_utils.py user-history "Name"
+python3 admin_utils.py stats
+python3 admin_utils.py list-users
+python3 admin_utils.py user-history "Name"
 
 # Database
 ls -lh instance/python_games.db
 sqlite3 instance/python_games.db
-python admin_utils.py backup-info
+python3 admin_utils.py backup-info
 
 # Backup
 cp instance/python_games.db backups/backup_$(date +%Y%m%d).db
 
 # Debug
-FLASK_ENV=development python app.py
-python -v app.py
+FLASK_ENV=development python3 app.py
+python3 -v app.py
 
 # Clean
 rm -rf instance/python_games.db
-pkill -f "python app.py"
+pkill -f "python3 app.py"
 ```
 
 ---
@@ -704,7 +729,7 @@ code_version table:
 ### Debugging
 1. Check terminal for errors
 2. Check browser console (F12)
-3. Run: `python admin_utils.py stats`
+3. Run: `python3 admin_utils.py stats`
 4. Check: `ls -la instance/python_games.db`
 5. Test: `pytest tests/test_api.py -v`
 
@@ -717,7 +742,7 @@ lsof -i :8443
 ls -la instance/
 
 # Any users?
-python admin_utils.py list-users
+python3 admin_utils.py list-users
 
 # Python version OK?
 python3 --version  # Need 3.11+
@@ -741,7 +766,7 @@ pip list | grep Flask         # Should show Flask 3.0.0
 ls -lh instance/python_games.db  # Should exist
 
 # 4. Games
-python admin_utils.py stats   # Should show 5 games
+python3 admin_utils.py stats   # Should show 5 games
 
 # 5. Web server
 curl http://localhost:8443    # Should return HTML
@@ -756,11 +781,11 @@ pytest tests/ -v              # Should pass (with noted issues)
 
 ## 🎯 Next Steps
 
-1. **Start app**: `python app.py`
+1. **Start app**: `python3 app.py`
 2. **Open browser**: http://localhost:8443
 3. **Create users**: Use "+ New Player" button
 4. **Start coding**: Begin with Snake game
-5. **Monitor**: Use `python admin_utils.py stats`
+5. **Monitor**: Use `python3 admin_utils.py stats`
 6. **Backup weekly**: `cp instance/python_games.db backups/`
 
 **Happy Coding!** 🎮🐍

@@ -28,7 +28,7 @@ This document outlines all optimizations made for Replit deployment.
 - Persistent storage across Repl restarts
 
 **Code**:
-```python
+```python3
 # Ensure instance folder exists (for Replit)
 os.makedirs('instance', exist_ok=True)
 
@@ -60,7 +60,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
    ```
 
 2. `gunicorn.conf.py` - Production server configuration
-   ```python
+   ```python3
    bind = "0.0.0.0:8443"
    workers = 2
    timeout = 30
@@ -106,7 +106,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
 **Usage in Replit**:
 ```bash
 # In Shell tab
-python admin_utils.py stats
+python3 admin_utils.py stats
 ```
 
 ## Performance Optimizations
@@ -119,7 +119,7 @@ python admin_utils.py stats
 - Total count displayed
 
 **API Changes**:
-```python
+```python3
 # New parameters
 {
     "limit": 50,
@@ -164,9 +164,9 @@ python admin_utils.py stats
 
 ### Monitoring
 
-```python
+```python3
 # Check database size
-python admin_utils.py backup-info
+python3 admin_utils.py backup-info
 ```
 
 ### Cleanup (if needed)
@@ -185,7 +185,7 @@ AND created_at < datetime('now', '-6 months');
 Set in Replit Secrets:
 
 1. **SECRET_KEY** (Important!)
-   ```python
+   ```python3
    import secrets
    print(secrets.token_hex(32))
    ```
@@ -334,7 +334,7 @@ git push origin main
 
 ### App Issues
 - Check Console logs
-- Run: `python admin_utils.py stats`
+- Run: `python3 admin_utils.py stats`
 - Review error messages
 - Test with fresh database
 

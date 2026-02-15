@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Admin utilities for Python Game Builder
-Run with: python admin_utils.py [command]
+Run with: python3 admin_utils.py [command]
 """
 
 import sys
@@ -151,9 +151,9 @@ Available commands:
 
 Examples:
 
-  python admin_utils.py stats
-  python admin_utils.py user-history "John"
-  python admin_utils.py create-user "Alice"
+  python3 admin_utils.py stats
+  python3 admin_utils.py user-history "John"
+  python3 admin_utils.py create-user "Alice"
 
 For Replit: Run these commands in the Shell tab
     """)
@@ -179,4 +179,4 @@ if __name__ == '__main__':
         commands[command]()
     else:
         print(f"❌ Unknown command: {command}")
-        print("Run 'python admin_utils.py help' for available commands")
+        print("Run 'python3 admin_utils.py help' for available commands")

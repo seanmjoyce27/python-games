@@ -22,5 +22,5 @@ if [ "$1" = "--production" ] || [ "$FLASK_ENV" = "production" ]; then
     gunicorn app:app -c gunicorn.conf.py
 else
     echo "🚀 Starting Flask development server..."
-    ./venv/bin/python -u app.py
+    ./venv/bin/python3 -u app.py
 fi

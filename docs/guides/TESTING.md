@@ -116,7 +116,7 @@ pytest tests/ -k "user" -v
 
 ### Using Fixtures
 
-```python
+```python3
 def test_example(client, test_user, test_game):
     """Example test using fixtures"""
     response = client.post('/api/code/save',
@@ -138,7 +138,7 @@ def test_example(client, test_user, test_game):
 
 ### Example Test
 
-```python
+```python3
 def test_new_feature(client, test_user):
     """Test description"""
     # Arrange
@@ -201,7 +201,7 @@ For features not covered by automated tests:
 
 ### 1. **Full User Flow**
 ```
-1. Start app: python app.py
+1. Start app: python3 app.py
 2. Create user
 3. Select game
 4. Edit code
@@ -245,7 +245,7 @@ pytest tests/ -v --pdb
 
 ### Check Database State
 
-```python
+```python3
 # In test
 def test_example(app, test_user):
     with app.app_context():

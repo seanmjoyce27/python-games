@@ -17,32 +17,31 @@ class TestUserAPI:
 
     def test_create_user(self, client):
         """Test creating a new user"""
+        # Choose valid avatar ID (e.g. 1)
         response = client.post('/api/users',
-                               json={'username': 'alice'},
+                               json={'avatar_id': 1},
                                content_type='application/json')
         assert response.status_code == 201
         data = json.loads(response.data)
-        assert data['username'] == 'alice'
+        # Username should match avatar name
+        assert data['username'] == 'Coremind Architect'
+        assert data['avatar_id'] == 1
         assert 'id' in data
 
-    def test_create_user_short_name(self, client):
-        """Test creating user with too short name"""
-        response = client.post('/api/users',
-                               json={'username': 'a'},
-                               content_type='application/json')
-        assert response.status_code == 400
-        data = json.loads(response.data)
-        assert 'error' in data
-
     def test_create_duplicate_user(self, client):
-        """Test creating duplicate username"""
-        client.post('/api/users', json={'username': 'bob'},
-                    content_type='application/json')
-        response = client.post('/api/users', json={'username': 'bob'},
-                               content_type='application/json')
+        """Test creating duplicate user (same avatar)"""
+        # Create first
+        client.post('/api/users', 
+                   json={'avatar_id': 2},
+                   content_type='application/json')
+        
+        # Try to create same avatar again
+        response = client.post('/api/users', 
+                              json={'avatar_id': 2},
+                              content_type='application/json')
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert 'already exists' in data['error'].lower()
+        assert 'already in use' in data['error']
 
 
 class TestGameAPI:

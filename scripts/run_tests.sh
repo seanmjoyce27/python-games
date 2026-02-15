@@ -15,7 +15,7 @@ if [ -z "$VIRTUAL_ENV" ]; then
 fi
 
 # Install dev dependencies if not installed
-if ! python -c "import pytest" 2>/dev/null; then
+if ! python3 -c "import pytest" 2>/dev/null; then
     echo "Installing development dependencies..."
     pip install -r requirements-dev.txt
 fi

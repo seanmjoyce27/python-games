@@ -15,10 +15,10 @@ A kid-friendly Python learning platform where students learn coding by modifying
 
 ```bash
 # Install dependencies
-pip install flask flask-sqlalchemy flask-cors python-dotenv
+pip install flask flask-sqlalchemy flask-cors python3-dotenv
 
 # Run the app
-python app.py
+python3 app.py
 ```
 
 Visit `http://localhost:8443` and choose your avatar!
@@ -27,7 +27,7 @@ Visit `http://localhost:8443` and choose your avatar!
 
 Complete documentation is in the [`docs/`](docs/) folder:
 
-- **[Quick Start Guide](docs/QUICKSTART.md)** - Installation and setup
+- **[Quick Start Guide](docs/setup/QUICKSTART.md)** - Installation and setup
 - **[Avatar System](docs/AVATAR_SYSTEM.md)** - How avatars work
 - **[Admin Panel](docs/ADMIN.md)** - Managing students
 

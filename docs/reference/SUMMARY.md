@@ -109,7 +109,7 @@ See [GAME_PROGRESSION.md](GAME_PROGRESSION.md) for detailed week-by-week guide.
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python app.py
+python3 app.py
 # Open http://localhost:8443
 ```
 

@@ -35,7 +35,7 @@ fi
 
 # Method 2: Kill by process name (surefire backup)
 # This catches cases where the app might be stuck or not listening yet
-pkill -f "python app.py" 2>/dev/null
+pkill -f "python3 app.py" 2>/dev/null
 pkill -f "gunicorn" 2>/dev/null
 
 echo "✅ App stopped."

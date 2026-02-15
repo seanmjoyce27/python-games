@@ -7,6 +7,7 @@ import time
 import os
 import signal
 import subprocess
+import sys
 
 
 def is_port_in_use(port):
@@ -103,7 +104,7 @@ def test_flask_app_releases_port():
     env['FLASK_ENV'] = 'production'  # Disable reloader
 
     process = subprocess.Popen(
-        ['python', 'app.py'],
+        [sys.executable, 'app.py'],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
