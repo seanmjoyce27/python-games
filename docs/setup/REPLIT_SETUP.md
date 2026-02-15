@@ -26,7 +26,6 @@ The app is pre-configured for Replit with:
 - `replit.nix` - Python environment setup
 - `gunicorn.conf.py` - Production server configuration
 - Automatic port binding to `0.0.0.0:8443`
-- Instance folder for SQLite database persistence
 
 ### Production Server (Gunicorn)
 
@@ -48,25 +47,58 @@ You can set these in Replit's "Secrets" tab:
 - `PORT` - Port number (defaults to 8443)
 - `DATABASE_URL` - Connection string for PostgreSQL (Auto-set by Replit Deployments)
 
-### Setting up PostgreSQL in Replit
+### Provisioning PostgreSQL in Replit
 
-**For Deployments:**
-1. Click "Deploy" in the top right
-2. Choose "Autoscale" or "Reserved VM"
-3. Replit acts as the cloud provider and may auto-provision a database URL
-4. If manually configuring, add the database connection string to Secrets as `DATABASE_URL`
+> [!IMPORTANT]
+> A PostgreSQL database is **required**. The app will not work without one.
 
-**For Persistent Workspace Dev (Optional):**
-1. Open the "Tools" in left sidebar
-2. Click "PostgreSQL" (if available) to provision a database
-3. Copy the URL and add to Secrets as `DATABASE_URL`
+#### Step 1: Create the Database
+
+1. In the bottom-left of your Repl, click **"Tools"**
+2. Select **"Database"** from the tools list
+3. Replit will provision a **Development Database** (PostgreSQL)
+4. You'll see the database panel showing storage usage (e.g., `29.1MB / 10GB`)
+
+The database is now created and available to your Repl.
+
+#### Step 2: Set the Connection String
+
+1. In the database panel, locate and copy the **connection string** (starts with `postgresql://`)
+2. Click **"Secrets"** in the Tools menu (or the padlock icon in the sidebar)
+3. Click **"+ New Secret"**:
+   - **Key**: `DATABASE_URL`
+   - **Value**: Paste the connection string you copied
+4. **Stop and restart** your Repl for the secret to take effect
+
+> [!TIP]
+> If Replit automatically injects the database URL as an environment variable, you may not need to add it manually. Check by running `echo $DATABASE_URL` in the Shell tab.
+
+#### Step 3: Verify the Connection
+
+In the **Shell** tab, run:
+
+```bash
+python3 -c "
+from app import app, db
+with app.app_context():
+    db.create_all()
+    print('✅ Database connected successfully!')
+"
+```
+
+#### For Deployments
+
+When deploying via **"Republish"** or **"Deploy"** in the top-right:
+- Replit carries over your Secrets (including `DATABASE_URL`) to the deployed app
+- The same Development Database is used in both workspace and deployments
+- Your data persists across deploys
 
 ## ▶️ Running the App
 
 Just click the "Run" button in Replit! The app will:
 1. Install dependencies from `requirements.txt` (including Gunicorn)
-2. Create the SQLite database in `instance/` folder
-3. Initialize with the Snake game template
+2. Connect to PostgreSQL and initialize the database
+3. Seed game templates
 4. Start the Gunicorn production server
 
 The app will be accessible at your Replit URL (e.g., `https://your-repl.your-username.repl.co`)
@@ -74,24 +106,19 @@ The app will be accessible at your Replit URL (e.g., `https://your-repl.your-use
 ## 💾 Data Persistence
 
 ### Database Storage
-- **Replit Workspace**: Uses SQLite in `instance/python_games.db` (persistent)
-- **Replit Deployments**: Uses PostgreSQL (via `DATABASE_URL` environment variable)
+- Uses PostgreSQL (via `DATABASE_URL` environment variable)
   - ✅ Data persists across deployments
   - ✅ No data loss when pushing new code
-  - ✅ Recommended for production
 
 ### Backup Your Data
 
 To backup your students' work:
 
-1. Go to the Files tab in Replit
-2. Navigate to `instance/python_games.db`
-3. Download the database file
-4. Store it safely
+1. Use `pg_dump` to export your PostgreSQL database
+2. Store the SQL file safely
 
 To restore:
-1. Upload the database file to `instance/python_games.db`
-2. Restart your Repl
+1. Use `psql` to import the SQL file
 
 ## 🎯 Features Optimized for Replit
 
@@ -119,15 +146,15 @@ Unlike the original design (limited to 25 saves), the Replit version keeps **all
 
 1. **Secret Key**: Set a custom `SECRET_KEY` in Replit Secrets for production use
 2. **Public Access**: Your Repl is public by default. Make it private in Repl settings if needed
-3. **Database**: SQLite is fine for small family use, but consider PostgreSQL for many users
+3. **Database**: Ensure `DATABASE_URL` is set in Replit Secrets
 
 ## 📊 Monitoring Usage
 
-### Database Size
+### Database Stats
 
-Check database size in the Shell:
+Check database stats in the Shell:
 ```bash
-du -h instance/python_games.db
+python3 scripts/admin_utils.py stats
 ```
 
 ### Total Versions
@@ -149,17 +176,11 @@ with app.app_context():
 2. Verify `.replit` file exists
 3. Try: Tools → Shell, then run `gunicorn app:app -c gunicorn.conf.py` manually
 
-### Database Locked Error
+### Database Connection Error
 
-1. Stop the Repl
-2. Wait 10 seconds
-3. Start again
-
-### Lost Data
-
-1. Check `instance/python_games.db` exists
-2. If missing, Replit may have cleared storage
-3. Restore from backup
+1. Verify `DATABASE_URL` is set correctly in Secrets
+2. Ensure the PostgreSQL database is accessible
+3. Stop and restart the Repl
 
 ### Out of Storage
 

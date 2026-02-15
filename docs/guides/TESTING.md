@@ -158,7 +158,7 @@ def test_new_feature(client, test_user):
 ## Test Isolation - FIXED ✅
 
 The test fixtures now properly isolate each test with its own temporary database. Each test:
-- Gets a fresh SQLite database in a temporary file
+- Gets a fresh SQLite database in a temporary file (for fast test isolation)
 - Has proper application context management
 - Cleans up completely after execution
 
@@ -256,7 +256,7 @@ def test_example(app, test_user):
 
 ## Test Data
 
-Tests use temporary SQLite databases that are:
+Tests use temporary SQLite databases (for speed and isolation) that are:
 - Created fresh for each test
 - Isolated from production
 - Automatically cleaned up

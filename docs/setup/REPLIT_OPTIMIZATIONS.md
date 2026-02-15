@@ -23,21 +23,16 @@ This document outlines all optimizations made for Replit deployment.
 ### 2. Database Configuration ✅
 
 **Changes Made**:
-- Database path: `sqlite:///instance/python_games.db`
-- Auto-create `instance/` folder
-- Persistent storage across Repl restarts
+- Database connection via `DATABASE_URL` environment variable
+- Defaults to `postgresql://localhost/python_games` for local dev
 
 **Code**:
 ```python3
-# 1. Use PostgreSQL if available (Replit Deployments)
-# 2. Fallback to SQLite (Replit Workspace / Local)
+# PostgreSQL only
 database_url = os.environ.get('DATABASE_URL')
 
-if database_url and database_url.startswith('postgres'):
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-else:
-    database_url = f'sqlite:///{db_path}'
+if not database_url:
+    database_url = 'postgresql://localhost/python_games'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 ```
@@ -202,7 +197,7 @@ Set in Replit Secrets:
 ### Optional
 
 3. **PORT** - Default: 8443
-4. **DATABASE_URL** - Default: sqlite:///instance/python_games.db
+4. **DATABASE_URL** - Default: postgresql://localhost/python_games
 
 ## Security Enhancements
 
@@ -217,17 +212,14 @@ Set in Replit Secrets:
 
 ### Manual Backup
 
-1. Go to Files in Replit
-2. Navigate to `instance/python_games.db`
-3. Click three dots → Download
-
-### Automated Backup (Advanced)
-
-Add to cron job or scheduled task:
 ```bash
-#!/bin/bash
-DATE=$(date +%Y%m%d)
-cp instance/python_games.db backups/python_games_$DATE.db
+pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
+```
+
+### Restore
+
+```bash
+psql $DATABASE_URL < backup_file.sql
 ```
 
 ## Testing Checklist
@@ -280,7 +272,7 @@ git push origin main
 # Database will auto-initialize
 
 # 5. Optional: Import existing database
-# Upload instance/python_games.db to Replit
+# Use pg_dump and psql for database migration
 ```
 
 ## Troubleshooting
@@ -292,12 +284,12 @@ git push origin main
 3. Check Console for errors
 4. Try: Shell → `gunicorn app:app -c gunicorn.conf.py`
 
-### Database Not Persisting
+### Database Not Connecting
 
-1. Ensure `instance/` folder exists
-2. Check file permissions
-3. Verify database path in config
-4. Check Replit storage limits
+1. Verify `DATABASE_URL` is set correctly
+2. Ensure PostgreSQL server is running
+3. Check connection string format
+4. Test with: `psql $DATABASE_URL -c "SELECT 1;"`
 
 ### Performance Issues
 
@@ -316,11 +308,10 @@ git push origin main
 
 ### Potential Improvements
 
-1. **PostgreSQL**: For many concurrent users
-2. **Redis**: For session management
-3. **CDN**: For static assets
-4. **Compression**: For save data
-5. **Archive**: Move old saves to cold storage
+1. **Redis**: For session management
+2. **CDN**: For static assets
+3. **Compression**: For save data
+4. **Archive**: Move old saves to cold storage
 
 ### When to Upgrade
 

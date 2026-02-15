@@ -165,11 +165,11 @@ pytest tests/ -k "user" -v
 
 ### Test Database
 
-Tests use **temporary SQLite databases**:
+Tests use **temporary SQLite databases** (for speed):
 - Created in `/tmp/` directory
 - Fresh database for each test
 - Automatically cleaned up
-- **Never touches your production database** at `instance/python_games.db`
+- **Never touches your production PostgreSQL database**
 
 ### Verify Tests Work
 
@@ -241,36 +241,7 @@ Before deploying or using:
 
 ---
 
-## 📁 Database: SQLite
 
-### Location
-```
-python-games/instance/python_games.db
-```
-
-### Auto-Created On First Run
-- ✅ `instance/` folder created
-- ✅ SQLite database file created
-- ✅ 3 tables: user, game, code_version
-- ✅ 5 games populated: Snake, Pong, Space Invaders, Maze, Tetris
-
-### Verify Database
-
-```bash
-# Check file exists
-ls -lh instance/python_games.db
-
-# View statistics
-python3 admin_utils.py stats
-
-# Inspect directly (optional)
-sqlite3 instance/python_games.db
-.tables
-SELECT * FROM game;
-.exit
-```
-
----
 
 ## 🗄️ Database Schema
 
@@ -321,7 +292,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 # Edit .env:
 SECRET_KEY=<paste-generated-key>
 FLASK_ENV=development
-DATABASE_URL=sqlite:///instance/python_games.db
+DATABASE_URL=postgresql://localhost/python_games
 PORT=8443
 ```
 
@@ -329,7 +300,7 @@ PORT=8443
 
 - **SECRET_KEY**: Encrypts session data (MUST be random!)
 - **FLASK_ENV**: `development` (debug on) or `production` (debug off)
-- **DATABASE_URL**: Path to SQLite database
+- **DATABASE_URL**: PostgreSQL connection URL (e.g. `postgresql://localhost/python_games`)
 - **PORT**: Web server port (default: 8443)
 
 ---
@@ -365,10 +336,10 @@ pytest tests/test_api.py -v
 - ✅ Admin utilities (stats, user management)
 
 ### Test Database
-- Tests use **temporary SQLite files** in `/tmp/`
+- Tests use **temporary SQLite files** in `/tmp/` (for speed)
 - Created fresh for each test
 - Automatically cleaned up
-- **Never affects your production database**
+- **Never affects your production PostgreSQL database**
 
 ---
 
@@ -454,14 +425,14 @@ Shows:
 
 ## 💾 Backup & Restore
 
-### Simple Backup
+### Backup with pg_dump
 
 ```bash
 # Create backup with date
-cp instance/python_games.db backups/python3_games_$(date +%Y%m%d).db
+pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 
 # Verify
-ls -lh backups/
+ls -lh backup_*.sql
 ```
 
 ### Restore Backup
@@ -470,20 +441,10 @@ ls -lh backups/
 # Stop app (Ctrl+C)
 
 # Restore
-cp backups/python3_games_20260131.db instance/python_games.db
+psql $DATABASE_URL < backup_file.sql
 
 # Restart
 python3 app.py
-```
-
-### SQL Export/Import
-
-```bash
-# Export all data
-sqlite3 instance/python_games.db .dump > backup.sql
-
-# Import from SQL
-sqlite3 instance/python_games.db < backup.sql
 ```
 
 ---
@@ -498,15 +459,6 @@ source venv/bin/activate
 
 # Reinstall dependencies
 pip install -r requirements.txt
-```
-
-### "Database is locked"
-
-```bash
-# Kill running instance
-pkill -f "python3 app.py"
-
-# Or restart terminal
 ```
 
 ### "Port 8443 already in use"
@@ -529,11 +481,14 @@ cp .env.example .env
 ls -la .env
 ```
 
-### Database won't create
+### Database connection error
 
 ```bash
-# Ensure instance folder exists
-mkdir -p instance
+# Ensure PostgreSQL is running
+brew services start postgresql@14  # macOS
+
+# Check connection
+psql $DATABASE_URL -c "SELECT 1;"
 
 # Check Python version (need 3.11+)
 python3 --version
@@ -569,22 +524,16 @@ After running `python3 app.py`:
 
 ## 📊 Database Operations
 
-### Check Database Size
-
-```bash
-ls -lh instance/python_games.db
-```
-
 ### Count Records
 
 ```bash
 # Total saves
-sqlite3 instance/python_games.db "SELECT COUNT(*) FROM code_version;"
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM code_version;"
 
 # Saves per user
-sqlite3 instance/python_games.db "
+psql $DATABASE_URL -c "
   SELECT u.username, COUNT(cv.id) as saves
-  FROM user u
+  FROM \"user\" u
   LEFT JOIN code_version cv ON u.id = cv.user_id
   GROUP BY u.username;
 "
@@ -593,31 +542,18 @@ sqlite3 instance/python_games.db "
 ### Recent Activity
 
 ```bash
-sqlite3 instance/python_games.db "
+psql $DATABASE_URL -c "
   SELECT
     u.username,
     g.display_name,
     cv.created_at,
     cv.message
   FROM code_version cv
-  JOIN user u ON cv.user_id = u.id
+  JOIN \"user\" u ON cv.user_id = u.id
   JOIN game g ON cv.game_id = g.id
   ORDER BY cv.created_at DESC
   LIMIT 10;
 "
-```
-
-### Database Maintenance
-
-```bash
-# Optimize database
-sqlite3 instance/python_games.db "VACUUM;"
-
-# Check integrity
-sqlite3 instance/python_games.db "PRAGMA integrity_check;"
-
-# Show database info
-sqlite3 instance/python_games.db "PRAGMA database_list;"
 ```
 
 ---
@@ -654,7 +590,7 @@ git commit -m "Your changes"
 
 ```bash
 # Nuclear option - start completely fresh
-rm -rf venv/ instance/ .pytest_cache/ __pycache__/
+rm -rf venv/ .pytest_cache/ __pycache__/
 
 # Rebuild everything
 python3 -m venv venv
@@ -692,25 +628,22 @@ python3 admin_utils.py list-users
 python3 admin_utils.py user-history "Name"
 
 # Database
-ls -lh instance/python_games.db
-sqlite3 instance/python_games.db
 python3 admin_utils.py backup-info
 
 # Backup
-cp instance/python_games.db backups/backup_$(date +%Y%m%d).db
+pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 
 # Debug
 FLASK_ENV=development python3 app.py
 python3 -v app.py
 
 # Clean
-rm -rf instance/python_games.db
 pkill -f "python3 app.py"
 ```
 
 ---
 
-## 🎓 What Gets Stored in SQLite
+## 🎓 What Gets Stored in the Database
 
 ### After Creating 2 Users
 
@@ -735,7 +668,7 @@ code_version table:
   id=3, user_id=1, game_id=1, code='...', is_checkpoint=false
 ```
 
-**All saves preserved forever** in SQLite!
+**All saves preserved forever** in PostgreSQL!
 
 ---
 
@@ -751,7 +684,7 @@ code_version table:
 1. Check terminal for errors
 2. Check browser console (F12)
 3. Run: `python3 admin_utils.py stats`
-4. Check: `ls -la instance/python_games.db`
+4. Check: `psql $DATABASE_URL -c "SELECT 1;"`
 5. Test: `pytest tests/test_api.py -v`
 
 ### Common Commands
@@ -759,8 +692,8 @@ code_version table:
 # Is app running?
 lsof -i :8443
 
-# Is database there?
-ls -la instance/
+# Is database accessible?
+psql $DATABASE_URL -c "SELECT 1;"
 
 # Any users?
 python3 admin_utils.py list-users
@@ -784,7 +717,7 @@ which python3                  # Should show venv path
 pip list | grep Flask         # Should show Flask 3.0.0
 
 # 3. Database
-ls -lh instance/python_games.db  # Should exist
+psql $DATABASE_URL -c "SELECT 1;"  # Should connect
 
 # 4. Games
 python3 admin_utils.py stats   # Should show 5 games
@@ -807,7 +740,7 @@ pytest tests/ -v              # Should pass (with noted issues)
 3. **Create users**: Use "+ New Player" button
 4. **Start coding**: Begin with Snake game
 5. **Monitor**: Use `python3 admin_utils.py stats`
-6. **Backup weekly**: `cp instance/python_games.db backups/`
+6. **Backup weekly**: `pg_dump $DATABASE_URL > backup.sql`
 
 **Happy Coding!** 🎮🐍
 

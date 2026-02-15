@@ -10,7 +10,7 @@ This document confirms project completion and readiness for deployment.
 
 ### 1. Core Application
 - [x] Flask backend with REST API
-- [x] SQLite database with proper schema
+- [x] PostgreSQL database with proper schema
 - [x] 5 complete game templates (Snake, Pong, Space Invaders, Maze, Tetris)
 - [x] Code editor with syntax highlighting (CodeMirror)
 - [x] Pyodide integration for safe Python execution

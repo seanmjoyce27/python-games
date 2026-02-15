@@ -63,8 +63,6 @@ python-games/
 │   └── css/
 │       └── style.css         # Full UI styling
 │
-├── instance/                  # Database storage (persists)
-│   └── python_games.db       # SQLite database
 │
 └── docs/
     ├── README.md             # Main documentation
@@ -140,7 +138,7 @@ python3 app.py
 ### **Backend**
 - Flask 3.0.0
 - SQLAlchemy (ORM)
-- SQLite (Database)
+- PostgreSQL (Database)
 - Python 3.11+
 
 ### **Frontend**
@@ -244,7 +242,7 @@ python admin_utils.py backup-info
 - Secret key from environment variable
 - Input validation on all API endpoints
 - CORS properly configured
-- SQLite injection protected (ORM)
+- SQL injection protected (ORM)
 
 ### **Replit Deployment**
 - Set `SECRET_KEY` in Replit Secrets
@@ -385,7 +383,7 @@ Your child will be able to:
 
 ### **Completed**
 - [x] Flask backend with REST API
-- [x] SQLite database with migrations
+- [x] PostgreSQL database with migrations
 - [x] Unlimited version history
 - [x] 5 game templates
 - [x] Code editor UI

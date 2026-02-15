@@ -37,30 +37,11 @@ AVATAR_OPTIONS = [
     {"id": 15, "name": "Terminal Warlord", "emoji": "🎖️", "color": "#C0392B"}
 ]
 
-# Replit-optimized configuration
-# Use absolute path for SQLite database
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-# Check if running on Replit (has REPL_ID environment variable)
-if os.environ.get('REPL_ID'):
-    # On Replit, use the root directory which persists
-    instance_path = basedir
-    print("🔵 Running on Replit - database will persist in project root")
-else:
-    # Local development - use instance folder
-    instance_path = os.path.join(basedir, 'instance')
-    os.makedirs(instance_path, exist_ok=True)
-
-db_path = os.path.join(instance_path, "python_games.db")
-
-# Database Configuration: PostgreSQL ONLY
-# This application is configured to run exclusively on PostgreSQL.
-# You must provide a valid DATABASE_URL environment variable.
-
+# Database Configuration
 database_url = os.environ.get('DATABASE_URL')
 
 if not database_url:
-    # Default to local Postgres for development convenience
+    # Default to local Postgres for development
     database_url = 'postgresql://localhost/python_games'
     print("⚠️  DATABASE_URL not set. Defaulting to local: postgresql://localhost/python_games")
 
@@ -695,9 +676,6 @@ def validate_mission(mission_id):
 
 def init_db():
     """Initialize database with sample games"""
-    # Ensure instance directory exists (important for Flask reloader)
-    os.makedirs(instance_path, exist_ok=True)
-
     with app.app_context():
         # Check if we should reinitialize the database from scratch
         if os.environ.get('REINIT_DB') == 'true':
@@ -1222,7 +1200,7 @@ alien_speed = 1
 frame_count = 0
 
 # Bomb drop settings
-bomb_drop_chance = 0.01  # Chance per alive alien per frame
+bomb_drop_chance = 0.001  # Chance per alive alien per frame
 
 # Game state
 score = 0
@@ -2679,6 +2657,12 @@ def update():
         if frame_count % 10 == 0:
             cx, cy = player.get_cursor_pos()
             block = world.get_block(cx, cy)
+            
+            # Smart mining: if trying to mine air to the side at head level, try feet level
+            if block == 0 and player.cursor_dx != 0 and player.cursor_dy == 0:
+                cy += 1
+                block = world.get_block(cx, cy)
+
             if block > 0 and BLOCK_TYPES.get(block, (None, None, False))[2]:
                 world.set_block(cx, cy, 0)
                 if block in player.inventory:
@@ -2698,7 +2682,12 @@ def update():
                 player.y = ny
                 player.vy += 1
             else:
-                player.vy = 0
+                # Bonked head - check if we can do a partial jump (1 block)
+                if player.vy == -2 and not world.is_solid(player.x, player.y - 1):
+                    player.y -= 1
+                    player.vy = 0
+                else:
+                    player.vy = 0
         else:
             # Falling down
             feet_y = player.y + 2  # Below the player

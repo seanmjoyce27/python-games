@@ -44,7 +44,7 @@ Complete documentation for the Python Game Builder learning platform.
 ### For Developers
 
 - **Port Configuration**: App runs on port 8443 by default
-- **Database**: SQLite stored in project root (Replit) or `instance/` (local)
+- **Database**: PostgreSQL (configure via `DATABASE_URL` environment variable)
 - **Environment**: Configure via `.env` file
 
 ## 🎮 Features
@@ -104,9 +104,7 @@ python-games/
 │   ├── AVATAR_SYSTEM.md  # Avatar details
 │   ├── LEADERBOARD.md    # Leaderboard system
 │   └── MISSION_UX_IMPROVEMENTS.md  # Mission workflow
-├── instance/             # Database (local dev)
-│   └── python_games.db
-└── .env                  # Configuration
+├── .env                  # Configuration
 
 ```
 
@@ -117,8 +115,8 @@ python-games/
 **Port 8443 in use?**
 - Change `PORT` in `.env` file
 
-**Database not persisting on Replit?**
-- Database now stores in project root on Replit (fixed)
+**Database not connecting?**
+- Verify `DATABASE_URL` is set correctly in `.env` or Replit Secrets
 
 **Admin password not working?**
 - Default is `python123`
