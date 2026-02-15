@@ -17,6 +17,14 @@ else
     echo "🐘 Using configured PostgreSQL database"
 fi
 
+# Run database migrations (schema updates)
+echo "🔄 Checking for database migrations..."
+if [ -d "venv" ]; then
+    ./venv/bin/python3 -m flask db upgrade
+else
+    python3 -m flask db upgrade
+fi
+
 # Start the application
 if [ "$1" = "--production" ] || [ "$FLASK_ENV" = "production" ]; then
     echo "🚀 Starting Gunicorn production server..."

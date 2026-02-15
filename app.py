@@ -2306,8 +2306,20 @@ def signal_handler(sig, frame):
 
 
 # Initialize database at module level for Gunicorn (runs when app is imported)
-# This ensures the DB and tables exist before any request handlers run
-init_db()
+try:
+    with app.app_context():
+        # Only attempt init if not running flask CLI commands
+        if 'flask' not in sys.modules and 'click' not in sys.modules: 
+             # Wait, flask cli uses click. But importing app for Gunicorn also loads modules.
+             # Better check: is executed script not 'flask'?
+             # Actually, just try/except is simplest.
+             pass
+    
+    # We'll rely on the manual init_db call in main or gunicorn's hook if possible.
+    # But for now, let's just try/except it to be safe.
+    init_db()
+except Exception as e:
+    print(f"⚠️  Database initialization skipped (module level): {e}")
 
 if __name__ == '__main__':
     # Suppress resource tracker warnings from Werkzeug reloader
@@ -2318,11 +2330,12 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Initialize database before starting server
-    # Only run in the parent process (when WERKZEUG_RUN_MAIN is not set)
-    # The reloader child process will inherit the already-created database
+    # Initialize database before starting server (if not already done)
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        init_db()
+        try:
+            init_db()
+        except Exception as e:
+            print(f"⚠️  Database initialization skipped (startup): {e}")
 
     # Replit optimized: bind to 0.0.0.0 for external access
     port = int(os.environ.get('PORT', 8443))

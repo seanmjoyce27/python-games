@@ -46,6 +46,20 @@ You can set these in Replit's "Secrets" tab:
 - `SECRET_KEY` - Flask secret key (auto-generated if not set)
 - `FLASK_ENV` - Set to `production` for deployment
 - `PORT` - Port number (defaults to 8443)
+- `DATABASE_URL` - Connection string for PostgreSQL (Auto-set by Replit Deployments)
+
+### Setting up PostgreSQL in Replit
+
+**For Deployments:**
+1. Click "Deploy" in the top right
+2. Choose "Autoscale" or "Reserved VM"
+3. Replit acts as the cloud provider and may auto-provision a database URL
+4. If manually configuring, add the database connection string to Secrets as `DATABASE_URL`
+
+**For Persistent Workspace Dev (Optional):**
+1. Open the "Tools" in left sidebar
+2. Click "PostgreSQL" (if available) to provision a database
+3. Copy the URL and add to Secrets as `DATABASE_URL`
 
 ## ▶️ Running the App
 

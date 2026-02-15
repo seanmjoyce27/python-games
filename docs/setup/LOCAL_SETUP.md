@@ -18,8 +18,24 @@ python3 -m venv venv
 source venv/bin/activate  # Mac/Linux
 # OR: venv\Scripts\activate  # Windows
 
-# 3. Create PostgreSQL Database
-# Ensure PostgreSQL is installed and running
+# 3. Install & Setup PostgreSQL
+# You must have a local PostgreSQL server running.
+
+# --- macOS (Homebrew) ---
+# brew install postgresql@14
+# brew services start postgresql@14
+
+# --- Windows ---
+# Download installer: https://www.postgresql.org/download/windows/
+# Run installer and remember the password you set (default 'postgres' user)
+# Add C:\Program Files\PostgreSQL\14\bin to your PATH
+
+# --- Linux (Ubuntu/Debian) ---
+# sudo apt update
+# sudo apt install postgresql postgresql-contrib
+# sudo systemctl start postgresql
+
+# 4. Create PostgreSQL Database
 createdb python_games
 
 # 4. Install ALL dependencies (including test tools)
