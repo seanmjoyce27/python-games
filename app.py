@@ -16,6 +16,12 @@ import warnings
 # Load environment variables from .env file
 load_dotenv()
 
+# Fix macOS fork-safety crash: prevents SIGSEGV in Kerberos/CoreFoundation
+# when Flask's dev reloader forks the process (multi-threaded process forked).
+import platform
+if platform.system() == 'Darwin':
+    os.environ.setdefault('OBJC_DISABLE_INITIALIZE_FORK_SAFETY', 'YES')
+
 app = Flask(__name__)
 
 # Predefined kid-friendly coding avatars with sci-fi names
@@ -47,6 +53,15 @@ if not database_url:
 
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+# Disable GSS/Kerberos authentication to prevent segfaults when forking on macOS.
+# The crash occurs in libgssapi_krb5 when psycopg2/libpq checks for Kerberos creds
+# in a forked child process (Flask reloader). Adding gssencmode=disable avoids this.
+if '?' in database_url:
+    if 'gssencmode' not in database_url:
+        database_url += '&gssencmode=disable'
+else:
+    database_url += '?gssencmode=disable'
 
 print(f"🐘 Connecting to PostgreSQL database...")
 
@@ -2443,7 +2458,14 @@ class Player:
 
     def get_cursor_pos(self):
         """Get world position of the action cursor"""
-        return (self.x + self.cursor_dx, self.y + self.cursor_dy)
+        cx = self.x + self.cursor_dx
+        cy = self.y + self.cursor_dy
+        # When aiming down, target below the player's feet (player is 2 blocks tall)
+        if self.cursor_dy > 0:
+            cy = self.y + self.height  # self.height is 2, so this is feet + 1
+        # When aiming sideways, target at head level (player.y)
+        # When aiming up, target above the head (player.y - 1)
+        return (cx, cy)
 
 class World:
     def __init__(self):
