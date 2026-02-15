@@ -1,6 +1,6 @@
 # Local Setup Quick Reference
 
-Complete guide for running Python Game Builder locally with SQLite database.
+Complete guide for running Python Game Builder locally with PostgreSQL.
 
 ---
 
@@ -18,8 +18,12 @@ python3 -m venv venv
 source venv/bin/activate  # Mac/Linux
 # OR: venv\Scripts\activate  # Windows
 
-# 3. Install ALL dependencies (including test tools)
-pip install -r requirements-dev.txt
+# 3. Create PostgreSQL Database
+# Ensure PostgreSQL is installed and running
+createdb python_games
+
+# 4. Install ALL dependencies (including test tools)
+pip install -r requirements.txt
 
 # 4. Run tests immediately
 pytest tests/ -v
@@ -46,6 +50,7 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 # Copy output to SECRET_KEY in .env
 
 # 2. Run the app (development mode)
+# Configured in .env to point to: postgresql://localhost/python_games
 python3 app.py
 
 # OR run in production mode
@@ -55,7 +60,7 @@ gunicorn app:app -c gunicorn.conf.py
 # http://localhost:8443
 ```
 
-**Done!** Database auto-creates with 5 games.
+**Done!** Database tables auto-created with 5 games.
 
 ---
 

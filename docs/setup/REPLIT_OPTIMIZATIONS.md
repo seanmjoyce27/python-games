@@ -29,13 +29,17 @@ This document outlines all optimizations made for Replit deployment.
 
 **Code**:
 ```python3
-# Ensure instance folder exists (for Replit)
-os.makedirs('instance', exist_ok=True)
+# 1. Use PostgreSQL if available (Replit Deployments)
+# 2. Fallback to SQLite (Replit Workspace / Local)
+database_url = os.environ.get('DATABASE_URL')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL',
-    'sqlite:///instance/python_games.db'
-)
+if database_url and database_url.startswith('postgres'):
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+else:
+    database_url = f'sqlite:///{db_path}'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 ```
 
 ### 3. Production Server (Gunicorn) ✅

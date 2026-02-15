@@ -60,10 +60,11 @@ The app will be accessible at your Replit URL (e.g., `https://your-repl.your-use
 ## 💾 Data Persistence
 
 ### Database Storage
-
-- SQLite database is stored in `instance/python_games.db`
-- This folder persists across Repl restarts
-- **Unlimited save history** - all versions are kept
+- **Replit Workspace**: Uses SQLite in `instance/python_games.db` (persistent)
+- **Replit Deployments**: Uses PostgreSQL (via `DATABASE_URL` environment variable)
+  - ✅ Data persists across deployments
+  - ✅ No data loss when pushing new code
+  - ✅ Recommended for production
 
 ### Backup Your Data
 

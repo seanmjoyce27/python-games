@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, upgrade
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -52,19 +53,28 @@ else:
 
 db_path = os.path.join(instance_path, "python_games.db")
 
-# Always use SQLite - ignore Replit's DATABASE_URL if it's PostgreSQL
-database_url = os.environ.get('DATABASE_URL', '')
-if database_url.startswith('postgres'):
-    # Replit provides PostgreSQL by default, but we want SQLite for this app
-    database_url = f'sqlite:///{db_path}'
-elif not database_url:
-    database_url = f'sqlite:///{db_path}'
+# Database Configuration: PostgreSQL ONLY
+# This application is configured to run exclusively on PostgreSQL.
+# You must provide a valid DATABASE_URL environment variable.
+
+database_url = os.environ.get('DATABASE_URL')
+
+if not database_url:
+    # Default to local Postgres for development convenience
+    database_url = 'postgresql://localhost/python_games'
+    print("⚠️  DATABASE_URL not set. Defaulting to local: postgresql://localhost/python_games")
+
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+print(f"🐘 Connecting to PostgreSQL database...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 CORS(app)
 
 # Database Models
@@ -170,6 +180,19 @@ def admin_panel():
                          games=games, 
                          total_saves=total_saves,
                          total_missions=total_missions)
+
+@app.route('/admin/db/upgrade', methods=['POST'])
+def admin_db_upgrade():
+    """Run database migrations from the admin panel"""
+    if not session.get('admin_authenticated'):
+        return redirect(url_for('admin_panel'))
+    
+    try:
+        upgrade()
+        return redirect(url_for('admin_panel', message="Database upgraded successfully!"))
+    except Exception as e:
+        print(f"Migration failed: {e}")
+        return redirect(url_for('admin_panel', error=f"Migration failed: {e}"))
 
 @app.route('/admin/logout')
 def admin_logout():

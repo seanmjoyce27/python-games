@@ -260,7 +260,8 @@
                     <tr>
                         <td>
                             <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="width: 40px; height: 40px; border-radius: 50%; background: {{ user.get_avatar()['color'] }}; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                                <div
+                                    style="width: 40px; height: 40px; border-radius: 50%; background: {{ user.get_avatar()['color'] }}; display: flex; align-items: center; justify-content: center; font-size: 20px;">
                                     {{ user.get_avatar()['emoji'] }}
                                 </div>
                                 <span style="font-weight: 600;">{{ user.username }}</span>
@@ -306,6 +307,35 @@
                 </div>
                 {% endfor %}
             </div>
+        </div>
+
+        <div class="section">
+            <h2>Database Management</h2>
+            <div
+                style="background: rgba(15, 23, 42, 0.3); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #fff;">Update Schema</h3>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Run database migrations to apply
+                        latest code changes to the database structure.</p>
+                </div>
+                <form method="POST" action="{{ url_for('admin_db_upgrade') }}"
+                    onsubmit="return confirm('This will update the database schema. Continue?');">
+                    <button type="submit" class="btn btn-primary" style="background: var(--success);">Run
+                        Migrations</button>
+                </form>
+            </div>
+            {% if request.args.get('message') %}
+            <div
+                style="margin-top: 1rem; padding: 1rem; background: rgba(34, 197, 94, 0.1); color: var(--success); border-radius: 0.5rem; text-align: center;">
+                {{ request.args.get('message') }}
+            </div>
+            {% endif %}
+            {% if request.args.get('error') %}
+            <div
+                style="margin-top: 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); color: var(--danger); border-radius: 0.5rem; text-align: center;">
+                {{ request.args.get('error') }}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>

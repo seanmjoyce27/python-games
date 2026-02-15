@@ -9,11 +9,12 @@ cd "$(dirname "$0")/.."
 # Create instance directory if it doesn't exist
 mkdir -p instance
 
-# Check if database exists
-if [ ! -f instance/python_games.db ]; then
-    echo "📦 First run - database will be created..."
+# Check database status
+if [ -z "$DATABASE_URL" ]; then
+    echo "⚠️  DATABASE_URL not set. App will try to connect to: postgresql://localhost/python_games"
+    echo "🐘 Ensure you have a local PostgreSQL server running."
 else
-    echo "✓ Database found"
+    echo "🐘 Using configured PostgreSQL database"
 fi
 
 # Start the application
