@@ -49,6 +49,7 @@ That's it! The app will:
 
 ### 1. Prerequisites
 - Python 3.11 or higher
+- PostgreSQL (for database)
 - Terminal/Command Prompt
 
 ### 2. Setup (5 minutes)
@@ -58,6 +59,9 @@ cd python3-games
 
 # Create virtual environment
 python3 -m venv venv
+
+# Create database (ensure postgres is running)
+createdb python_games
 
 # Activate it
 source venv/bin/activate  # Mac/Linux
