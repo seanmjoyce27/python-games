@@ -83,7 +83,7 @@
                     const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
 
                     return `
-                        <div class="leaderboard-entry ${rank <= 3 ? 'top-three' : ''}">
+                        <div class="leaderboard-entry ${rank <= 3 ? 'top-three' : ''}" data-user-id="${entry.user_id}">
                             <div class="leaderboard-rank">${medal}</div>
                             <div class="leaderboard-avatar">
                                 <div class="avatar-emoji-small" style="background: ${entry.avatar.color}">
@@ -98,6 +98,27 @@
                         </div>
                     `;
                 }).join('');
+
+                // Add click handlers to leaderboard entries
+                document.querySelectorAll('.leaderboard-entry').forEach(entry => {
+                    entry.addEventListener('click', function() {
+                        const userId = this.dataset.userId;
+
+                        // Clear previous selection
+                        document.querySelectorAll('.avatar-card.active').forEach(c => c.classList.remove('selected'));
+
+                        // Find and select the corresponding avatar card
+                        const avatarCard = document.querySelector(`.avatar-card.active[data-user-id="${userId}"]`);
+                        if (avatarCard) {
+                            avatarCard.classList.add('selected');
+                            selectedUserId = userId;
+                            document.getElementById('gamesSection').style.display = 'block';
+
+                            // Scroll to games section
+                            document.getElementById('gamesSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    });
+                });
 
             } catch (error) {
                 console.error('Error loading leaderboard:', error);

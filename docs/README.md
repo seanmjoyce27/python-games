@@ -7,6 +7,8 @@ Complete documentation for the Python Game Builder learning platform.
 - **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
 - **[Avatar System](AVATAR_SYSTEM.md)** - How the 15 coding avatars work
 - **[Mission Leaderboard](LEADERBOARD.md)** - Competitive ranking system
+- **[Mission UX Improvements](MISSION_UX_IMPROVEMENTS.md)** - Streamlined mission workflow
+- **[Syntax Error Banner](SYNTAX_ERROR_BANNER.md)** - Kid-friendly error messages
 - **[Admin Panel](ADMIN.md)** - Managing students and monitoring progress
 
 ## 📖 Documentation Overview
@@ -33,6 +35,11 @@ Complete documentation for the Python Game Builder learning platform.
    - How ranking works
    - Medal system for top 3
    - Motivating friendly competition
+
+5. **[Mission UX Improvements](MISSION_UX_IMPROVEMENTS.md)**
+   - Streamlined workflow
+   - Active mission banner
+   - One-click validation
 
 ### For Developers
 
@@ -95,7 +102,8 @@ python-games/
 │   ├── QUICKSTART.md     # Getting started
 │   ├── ADMIN.md          # Admin guide
 │   ├── AVATAR_SYSTEM.md  # Avatar details
-│   └── LEADERBOARD.md    # Leaderboard system
+│   ├── LEADERBOARD.md    # Leaderboard system
+│   └── MISSION_UX_IMPROVEMENTS.md  # Mission workflow
 ├── instance/             # Database (local dev)
 │   └── python_games.db
 └── .env                  # Configuration

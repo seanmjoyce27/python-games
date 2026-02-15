@@ -26,6 +26,34 @@
             </div>
         </header>
 
+        <!-- Syntax Error Banner -->
+        <div id="syntaxErrorBanner" class="syntax-error-banner" style="display: none;">
+            <div class="error-banner-content">
+                <span class="error-banner-icon">⚠️</span>
+                <div class="error-banner-text">
+                    <div class="error-banner-title">Syntax Error</div>
+                    <div class="error-banner-message" id="syntaxErrorMessage"></div>
+                </div>
+            </div>
+            <button id="closeSyntaxError" class="btn-close-small">×</button>
+        </div>
+
+        <!-- Active Mission Banner -->
+        <div id="activeMissionBanner" class="active-mission-banner" style="display: none;">
+            <div class="active-mission-content">
+                <span class="active-mission-icon">🎯</span>
+                <div class="active-mission-text">
+                    <div class="active-mission-title" id="activeMissionTitle"></div>
+                    <div class="active-mission-desc" id="activeMissionDesc"></div>
+                </div>
+            </div>
+            <div class="active-mission-actions">
+                <button id="showHintsBannerBtn" class="btn-hint-small">💡 Hints</button>
+                <button id="validateBannerBtn" class="btn-check-small">✓ Check Code</button>
+                <button id="closeMissionBanner" class="btn-close-small">×</button>
+            </div>
+        </div>
+
         <div class="workspace">
             <div class="editor-panel">
                 <div class="panel-header">
@@ -255,6 +283,9 @@
             output.innerHTML = '<p class="loading">Running your code...</p>';
             errorDiv.textContent = '';
 
+            // Hide syntax error banner when running new code
+            document.getElementById('syntaxErrorBanner').style.display = 'none';
+
             try {
                 // Setup Canvas Context for global access
                 const canvas = document.getElementById('canvas');
@@ -455,8 +486,45 @@ sys.stdout = StringIO()
 
 
             } catch (error) {
+                // Show syntax error banner
+                const syntaxBanner = document.getElementById('syntaxErrorBanner');
+                const syntaxMessage = document.getElementById('syntaxErrorMessage');
+
+                // Parse error message to make it kid-friendly
+                let errorMsg = error.message;
+
+                // Extract line number if present
+                const lineMatch = errorMsg.match(/line (\d+)/i);
+                if (lineMatch) {
+                    const lineNum = lineMatch[1];
+                    errorMsg = `Error on line ${lineNum}: ${errorMsg}`;
+                }
+
+                // Simplify common Python errors for kids
+                if (errorMsg.includes('SyntaxError')) {
+                    if (errorMsg.includes('invalid syntax')) {
+                        syntaxMessage.textContent = `Check your code for typos, missing colons (:), or incorrect indentation. ${errorMsg}`;
+                    } else if (errorMsg.includes('unexpected EOF')) {
+                        syntaxMessage.textContent = `Your code is incomplete. Make sure all parentheses (), brackets [], and quotes are closed. ${errorMsg}`;
+                    } else {
+                        syntaxMessage.textContent = errorMsg;
+                    }
+                } else if (errorMsg.includes('IndentationError')) {
+                    syntaxMessage.textContent = `Indentation problem! Make sure your code is indented correctly with spaces or tabs. ${errorMsg}`;
+                } else if (errorMsg.includes('NameError')) {
+                    syntaxMessage.textContent = `Variable or function not found. Check your spelling! ${errorMsg}`;
+                } else {
+                    syntaxMessage.textContent = errorMsg;
+                }
+
+                syntaxBanner.style.display = 'flex';
+
+                // Also show in error div and output
                 errorDiv.textContent = error.message;
-                output.innerHTML = '<p class="error">Code has errors (see below)</p>';
+                output.innerHTML = '<p class="error">⚠️ Fix the syntax error shown above, then try running again!</p>';
+
+                // Scroll to top to show banner
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         });
 
@@ -803,6 +871,26 @@ sys.stdout = StringIO()
             document.getElementById('missionModal').style.display = 'flex';
         }
 
+        // Update active mission banner
+        function updateActiveMissionBanner() {
+            const banner = document.getElementById('activeMissionBanner');
+
+            if (!currentMission) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            const progress = missionProgress[currentMission.id] || { status: 'not_started' };
+
+            if (progress.status === 'in_progress') {
+                document.getElementById('activeMissionTitle').textContent = `Mission ${currentMission.order}: ${currentMission.title}`;
+                document.getElementById('activeMissionDesc').textContent = currentMission.description;
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
         // Start mission
         document.getElementById('startMissionBtn').addEventListener('click', async () => {
             if (!userId) {
@@ -824,7 +912,15 @@ sys.stdout = StringIO()
 
                 if (response.ok) {
                     await loadMissionProgress(currentMission.id);
-                    showMissionDetail(currentMission.id);
+
+                    // Close both the modal and overlay
+                    document.getElementById('missionModal').style.display = 'none';
+                    document.getElementById('missionsOverlay').classList.remove('active');
+
+                    // Show active mission banner
+                    updateActiveMissionBanner();
+
+                    // Update missions list
                     renderMissionsList();
                 }
             } catch (error) {
@@ -833,23 +929,38 @@ sys.stdout = StringIO()
             }
         });
 
-        // Show hints
+        // Show hints (in modal)
         document.getElementById('showHintsBtn').addEventListener('click', () => {
             const hintsDiv = document.getElementById('missionHints');
             hintsDiv.style.display = hintsDiv.style.display === 'none' ? 'block' : 'none';
         });
 
-        // Validate mission
-        document.getElementById('validateMissionBtn').addEventListener('click', async () => {
+        // Show hints (from banner)
+        document.getElementById('showHintsBannerBtn').addEventListener('click', () => {
+            if (!currentMission) return;
+            // Open mission detail modal to show hints
+            showMissionDetail(currentMission.id);
+            // Auto-show hints
+            setTimeout(() => {
+                document.getElementById('missionHints').style.display = 'block';
+            }, 100);
+        });
+
+        // Close mission banner
+        document.getElementById('closeMissionBanner').addEventListener('click', () => {
+            document.getElementById('activeMissionBanner').style.display = 'none';
+        });
+
+        // Close syntax error banner
+        document.getElementById('closeSyntaxError').addEventListener('click', () => {
+            document.getElementById('syntaxErrorBanner').style.display = 'none';
+        });
+
+        // Validate mission (shared function)
+        async function validateCurrentMission() {
             if (!userId || !currentMission) return;
 
             const code = editor.getValue();
-            const feedbackDiv = document.getElementById('missionFeedback');
-
-            // Show loading state
-            feedbackDiv.style.display = 'block';
-            feedbackDiv.className = 'mission-feedback';
-            feedbackDiv.textContent = '🔄 Checking your code...';
 
             try {
                 const response = await fetch(`/api/missions/${currentMission.id}/validate`, {
@@ -863,29 +974,57 @@ sys.stdout = StringIO()
 
                 const result = await response.json();
 
-                // Update feedback
-                feedbackDiv.className = result.success ? 'mission-feedback success' : 'mission-feedback error';
-                feedbackDiv.textContent = result.feedback;
-
                 // Reload progress and update UI
                 await loadMissionProgress(currentMission.id);
                 renderMissionsList();
 
-                // If completed, update button states
+                // Show result modal
+                const modal = document.getElementById('missionModal');
+                const feedbackDiv = document.getElementById('missionFeedback');
+
                 if (result.success) {
+                    // Mission completed!
+                    feedbackDiv.style.display = 'block';
+                    feedbackDiv.className = 'mission-feedback success';
+                    feedbackDiv.textContent = result.feedback;
+
+                    // Hide banner
+                    document.getElementById('activeMissionBanner').style.display = 'none';
+
+                    // Show success in modal
+                    document.getElementById('missionTitle').textContent = `Mission ${currentMission.order}: ${currentMission.title}`;
+                    document.getElementById('missionDescription').textContent = currentMission.description;
+                    document.getElementById('startMissionBtn').style.display = 'none';
+                    document.getElementById('validateMissionBtn').style.display = 'none';
+                    document.getElementById('showHintsBtn').style.display = 'none';
+                    modal.style.display = 'flex';
+
+                    // Auto-close after 3 seconds
                     setTimeout(() => {
-                        document.getElementById('startMissionBtn').style.display = 'none';
-                        document.getElementById('validateMissionBtn').style.display = 'none';
-                        document.getElementById('showHintsBtn').style.display = 'none';
-                    }, 1000);
+                        modal.style.display = 'none';
+                        currentMission = null;
+                    }, 3000);
+                } else {
+                    // Show error feedback
+                    feedbackDiv.style.display = 'block';
+                    feedbackDiv.className = 'mission-feedback error';
+                    feedbackDiv.textContent = result.feedback;
+
+                    // Show in modal
+                    showMissionDetail(currentMission.id);
                 }
 
             } catch (error) {
                 console.error('Error validating mission:', error);
-                feedbackDiv.className = 'mission-feedback error';
-                feedbackDiv.textContent = 'Error checking code. Please try again.';
+                alert('Error checking code. Please try again.');
             }
-        });
+        }
+
+        // Validate mission (from modal)
+        document.getElementById('validateMissionBtn').addEventListener('click', validateCurrentMission);
+
+        // Validate mission (from banner)
+        document.getElementById('validateBannerBtn').addEventListener('click', validateCurrentMission);
 
         // Open missions overlay (from button or floating tab)
         document.getElementById('missionsBtn').addEventListener('click', () => {

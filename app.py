@@ -1849,20 +1849,20 @@ def draw():
         })
 
         # Snake Mission 2: Change grid size
-        get_or_create_mission(snake.id, "Make the Game Board Bigger or Smaller", 2, {
-            'description': "Find `GRID_SIZE = 20` (around line 9) and change it. Try 15 for a smaller board or 25 for a bigger board!",
+        get_or_create_mission(snake.id, "Make the Grid Cells Bigger or Smaller", 2, {
+            'description': "Find `GRID_SIZE = 20` (around line 9) and change it. Try 15 for bigger cells or 25 for smaller cells! The game board stays the same size, but the grid changes.",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
                 'variable': 'GRID_SIZE',
                 'old_value': '20',
                 'new_value_pattern': r'\d+',
-                'success_message': 'Perfect! You resized the game board. The snake has more (or less) room to move now!',
+                'success_message': 'Perfect! You changed the grid size. The cells are now bigger or smaller!',
                 'failure_message': 'Look for GRID_SIZE and change it from 20 to another number.'
             }),
             'hints': json.dumps([
-                "GRID_SIZE controls how big the game board is",
-                "Smaller numbers = smaller board, bigger numbers = bigger board",
+                "GRID_SIZE controls how many cells fit in the game board",
+                "Smaller numbers = bigger cells (fewer cells fit), larger numbers = smaller cells (more cells fit)",
                 "Try 15, 25, or 30 and see what you like!"
             ])
         })
