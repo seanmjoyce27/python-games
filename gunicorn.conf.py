@@ -2,8 +2,9 @@
 
 import os
 
-# Port is handled by command line bind in .replit
-# bind = f"0.0.0.0:{os.environ.get('PORT', '8080')}"
+# Port Configuration
+# Bind to $PORT if set, otherwise default to 8443 to match local dev
+bind = f"0.0.0.0:{os.environ.get('PORT', '8443')}"
 
 # Worker configuration
 workers = int(os.environ.get('GUNICORN_WORKERS', '2'))

@@ -81,25 +81,45 @@ def user_history(username):
 def backup_info():
     """Show backup information"""
     with app.app_context():
-        import os
-        db_path = 'instance/python_games.db'
-
+        db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+        
         print("\n💾 Backup Information\n" + "="*50)
 
-        if os.path.exists(db_path):
-            size = os.path.getsize(db_path)
-            size_mb = size / (1024 * 1024)
-            print(f"Database: {db_path}")
-            print(f"Size: {size_mb:.2f} MB")
-            print(f"\nTo backup:")
-            print(f"  1. Download {db_path}")
-            print(f"  2. Save with date: python_games_{datetime.now().strftime('%Y%m%d')}.db")
+        if db_uri and db_uri.startswith('postgresql'):
+            print(f"Database Type: PostgreSQL")
+            print(f"Connection URI: {db_uri}")
+            print(f"\nTo backup (using pg_dump):")
+            print(f"  pg_dump {db_uri} > backup_{datetime.now().strftime('%Y%m%d')}.sql")
             print(f"\nTo restore:")
-            print(f"  1. Stop the app")
-            print(f"  2. Replace {db_path} with backup")
-            print(f"  3. Restart the app")
+            print(f"  psql {db_uri} < backup_file.sql")
         else:
-            print("❌ Database not found!")
+            # Assume SQLite
+            import os
+            # If URI is set, try to parse path, otherwise default
+            if db_uri and db_uri.startswith('sqlite:///'):
+                db_path = db_uri.replace('sqlite:///', '')
+            else:
+                db_path = 'instance/python_games.db'
+            
+            # Handle relative paths if needed, though they should be absolute in config
+            if not os.path.isabs(db_path):
+                db_path = os.path.abspath(db_path)
+
+            if os.path.exists(db_path):
+                size = os.path.getsize(db_path)
+                size_mb = size / (1024 * 1024)
+                print(f"Database Type: SQLite")
+                print(f"File Path: {db_path}")
+                print(f"Size: {size_mb:.2f} MB")
+                print(f"\nTo backup:")
+                print(f"  1. Copy the file: cp {db_path} backup_{datetime.now().strftime('%Y%m%d')}.db")
+                print(f"\nTo restore:")
+                print(f"  1. Stop the app")
+                print(f"  2. Replace {db_path} with backup file")
+                print(f"  3. Restart the app")
+            else:
+                print(f"❌ SQLite Database file not found at: {db_path}")
+                print(f"Current URI: {db_uri}")
 
         print("="*50 + "\n")
 

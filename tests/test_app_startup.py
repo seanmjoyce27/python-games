@@ -53,20 +53,14 @@ def test_init_db_creates_instance_directory():
             shutil.rmtree(test_dir)
 
 
-def test_database_config_uses_absolute_path():
-    """Test that database URI uses absolute path"""
+def test_database_config_uses_postgresql():
+    """Test that database URI uses PostgreSQL"""
     import app as app_module
 
     db_uri = app_module.app.config['SQLALCHEMY_DATABASE_URI']
 
-    # Should start with sqlite:///
-    assert db_uri.startswith('sqlite:///')
-
-    # Extract path from URI
-    db_path = db_uri.replace('sqlite:///', '')
-
-    # Path should be absolute
-    assert os.path.isabs(db_path)
+    # Should start with postgresql://
+    assert db_uri.startswith('postgresql://')
 
 
 def test_init_db_idempotent():
