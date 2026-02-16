@@ -69,6 +69,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Connection pool settings to prevent "SSL SYSCALL error: EOF detected" in
+# autoscale deployments where idle connections get dropped by the DB server.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,    # Validate connections before use; auto-reconnect stale ones
+    'pool_recycle': 300,      # Recycle connections older than 5 minutes
+}
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 CORS(app)
