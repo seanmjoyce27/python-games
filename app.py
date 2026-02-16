@@ -2062,7 +2062,7 @@ def draw():
         # --- Pong Missions ---
         # Pong Mission 1: Change paddle speed
         get_or_create_mission(pong.id, "Change the Paddle Speed", 1, {
-            'description': "Find the `speed` variable in the `Paddle` class (around line 19) and change it. Try 12 for faster paddles or 5 for a real challenge!",
+            'description': "Find the `speed` variable in the `Paddle` class (around line 18) and change it. Try 12 for faster paddles or 5 for a real challenge!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2081,7 +2081,7 @@ def draw():
 
         # Pong Mission 2: Change winning score
         get_or_create_mission(pong.id, "Change the Winning Score", 2, {
-            'description': "Find `WINNING_SCORE = 5` (around line 11) and change it to something else, like 10 or 3. How long do you want the game to last?",
+            'description': "Find `WINNING_SCORE = 5` (around line 10) and change it to something else, like 10 or 3. How long do you want the game to last?",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2099,7 +2099,7 @@ def draw():
 
         # Pong Mission 3: Make the ball bigger
         get_or_create_mission(pong.id, "Make the Ball Bigger", 3, {
-            'description': "Find where the ball's `radius` is set in the `reset` method (around line 59) and change it. Try 15 or 20!",
+            'description': "Find where the ball's `radius` is set in the `reset` method (around line 58) and change it. Try 15 or 20!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2117,7 +2117,7 @@ def draw():
 
         # Pong Mission 4: Resize the paddles
         get_or_create_mission(pong.id, "Resize the Paddles", 4, {
-            'description': "Find the `height` of the paddles (around line 18) and change it. Make them 120 pixels high to make it easier to block the ball!",
+            'description': "Find the `height` of the paddles (around line 17) and change it. Make them 120 pixels high to make it easier to block the ball!",
             'difficulty': "intermediate",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2154,7 +2154,7 @@ def draw():
         # --- Space Invaders Missions ---
         # Space Invaders Mission 1: Make the ship faster
         get_or_create_mission(space_invaders.id, "Make the Ship Faster", 1, {
-            'description': "Find the `speed` variable in the `Player` class (around line 31) and increase it to 12. Zip across the screen!",
+            'description': "Find the `speed` variable in the `Player` class (around line 19) and increase it to 12. Zip across the screen!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2172,7 +2172,7 @@ def draw():
 
         # Space Invaders Mission 2: Make the aliens faster
         get_or_create_mission(space_invaders.id, "Make the Aliens Faster", 2, {
-            'description': "Find `alien_speed = 1` (around line 86) and change it to 3. They're coming for Earth!",
+            'description': "Find `alien_speed = 1` (around line 90) and change it to 3. They're coming for Earth!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2183,14 +2183,14 @@ def draw():
                 'failure_message': 'Change alien_speed from 1 to another number.'
             }),
             'hints': json.dumps([
-                "alien_speed is a global variable around line 86",
+                "alien_speed is a global variable around line 90",
                 "Try 2 or 3 for a real challenge!"
             ])
         })
 
         # Space Invaders Mission 3: Add more alien rows
         get_or_create_mission(space_invaders.id, "Add More Alien Rows", 3, {
-            'description': "Find the loop that creates the aliens (around line 75) and change `range(5)` to `range(7)`. More aliens to defeat!",
+            'description': "Find the loop that creates the aliens (around line 78) and change `range(5)` to `range(7)`. More aliens to defeat!",
             'difficulty': "intermediate",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2199,14 +2199,14 @@ def draw():
                 'failure_message': 'Change range(5) to range(7) in the alien creation loop.'
             }),
             'hints': json.dumps([
-                "Look for 'for row in range(5):' near line 75",
+                "Look for 'for row in range(5):' near line 78",
                 "Changing 5 to 7 adds two more rows of aliens"
             ])
         })
 
         # Space Invaders Mission 4: Increase starting lives
         get_or_create_mission(space_invaders.id, "Increase Starting Lives", 4, {
-            'description': "Find where `self.lives` is set in the `Player` (around line 32) and change it to 5. Give yourself a little more breathing room!",
+            'description': "Find where `self.lives` is set in the `Player` (around line 20) and change it to 5. Give yourself a little more breathing room!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2243,7 +2243,7 @@ def draw():
         # --- Maze Missions ---
         # Maze Mission 1: Change movement delay
         get_or_create_mission(maze.id, "Make the Player Move Faster", 1, {
-            'description': "Find the line `if frame_count % 8 != 0:` (around line 81) and change 8 to 4. Your player will react much quicker!",
+            'description': "Find the line `if frame_count % 8 != 0:` (around line 87) and change 8 to 4. Your player will react much quicker!",
             'difficulty': "beginner",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2259,7 +2259,7 @@ def draw():
 
         # Maze Mission 2: Change the exit color
         get_or_create_mission(maze.id, "Change the Exit Color", 2, {
-            'description': "Find where the exit is drawn in the `draw()` function (around line 135) and change the color from `\"#44ff44\"` to `\"#ff00ff\"` (magenta).",
+            'description': "Find where the exit is drawn in the `draw()` function (around line 141) and change the color from `\"#44ff44\"` to `\"#ff00ff\"` (magenta).",
             'difficulty': "beginner",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2275,7 +2275,7 @@ def draw():
 
         # Maze Mission 3: Add a secret treasure
         get_or_create_mission(maze.id, "Add a Secret Treasure", 3, {
-            'description': "Add another treasure to the maze! Find the `maze.grid` (around line 40) and change one of the `0`s to a `3`.",
+            'description': "Add another treasure to the maze! Find the `maze.grid` (around line 45) and change one of the `0`s to a `3`.",
             'difficulty': "intermediate",
             'validation_type': "code_pattern",
             'validation_data': json.dumps({
@@ -2292,7 +2292,7 @@ def draw():
 
         # Maze Mission 4: Change player color
         get_or_create_mission(maze.id, "Customize Your Player", 4, {
-            'description': "Find where the player is drawn (around line 144) and change the color `\"#4444ff\"` to your favorite color!",
+            'description': "Find where the player is drawn (around line 150) and change the color `\"#4444ff\"` to your favorite color!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2329,7 +2329,7 @@ def draw():
         # --- Tetris Missions ---
         # Tetris Mission 1: Change the drop speed
         get_or_create_mission(tetris.id, "Make the Game Faster", 1, {
-            'description': "Find `drop_speed = 30` (around line 125) and change it to 15. The blocks will fall twice as fast!",
+            'description': "Find `drop_speed = 30` (around line 129) and change it to 15. The blocks will fall twice as fast!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2347,7 +2347,7 @@ def draw():
 
         # Tetris Mission 2: Change the block size
         get_or_create_mission(tetris.id, "Change the Block Size", 2, {
-            'description': "Find `BLOCK_SIZE = 28` (around line 7) and change it to 20. The board will look very different!",
+            'description': "Find `BLOCK_SIZE = 28` (around line 9) and change it to 20. The board will look very different!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2365,7 +2365,7 @@ def draw():
 
         # Tetris Mission 3: Make it score more points
         get_or_create_mission(tetris.id, "Award More Points", 3, {
-            'description': "Find the `scores` list in `clear_full_lines` (around line 97) and double all the values! Who doesn't love a high score?",
+            'description': "Find the `scores` list in `clear_full_lines` (around line 99) and double all the values! Who doesn't love a high score?",
             'difficulty': "intermediate",
             'validation_type': "code_pattern",
             'validation_data': json.dumps({
@@ -2381,7 +2381,7 @@ def draw():
 
         # Tetris Mission 4: Change the background color
         get_or_create_mission(tetris.id, "Style the Game Board", 4, {
-            'description': "Find where the background is drawn (around line 236) and change `\"#1a1a1a\"` to `\"#000033\"` (dark blue).",
+            'description': "Find where the background is drawn (around line 239) and change `\"#1a1a1a\"` to `\"#000033\"` (dark blue).",
             'difficulty': "beginner",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2851,7 +2851,7 @@ def draw():
         # --- Minecraft Missions ---
         # Minecraft Mission 1: Change gravity speed
         get_or_create_mission(minecraft.id, "Change the Gravity", 1, {
-            'description': "Find `GRAVITY_SPEED = 4` (around line 8) and change it. Try 2 for heavy gravity or 8 for moon-like low gravity!",
+            'description': "Find `GRAVITY_SPEED = 4` (around line 15) and change it. Try 2 for heavy gravity or 8 for moon-like low gravity!",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2870,7 +2870,7 @@ def draw():
 
         # Minecraft Mission 2: Change player color
         get_or_create_mission(minecraft.id, "Customize Your Character", 2, {
-            'description': "Find the player's `color` (around line 38) and change it from `\"#FF6347\"` to any color you like! Try `\"#00BFFF\"` for blue or `\"#FF69B4\"` for pink.",
+            'description': "Find the player's `color` (around line 40) and change it from `\"#FF6347\"` to any color you like! Try `\"#00BFFF\"` for blue or `\"#FF69B4\"` for pink.",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -2889,7 +2889,7 @@ def draw():
 
         # Minecraft Mission 3: Add a new block type
         get_or_create_mission(minecraft.id, "Add a New Block Type", 3, {
-            'description': "Add a new block to the BLOCK_TYPES dictionary! Add something like `11: (\"Diamond\", \"#00FFFF\", True),` after the Gold entry around line 28.",
+            'description': "Add a new block to the BLOCK_TYPES dictionary! Add something like `11: (\"Diamond\", \"#00FFFF\", True),` after the Gold entry around line 29.",
             'difficulty': "intermediate",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2907,7 +2907,7 @@ def draw():
 
         # Minecraft Mission 4: Change the world generation
         get_or_create_mission(minecraft.id, "Reshape the World", 4, {
-            'description': "Find the terrain generation height range. Change `GRID_H // 3` (around line 53) to `GRID_H // 4` to make taller mountains, or `GRID_H // 2` for flatter land!",
+            'description': "Find the terrain generation height range. Change `GRID_H // 3` (around line 84) to `GRID_H // 4` to make taller mountains, or `GRID_H // 2` for flatter land!",
             'difficulty': "intermediate",
             'validation_type': "code_pattern",
             'validation_data': json.dumps({
