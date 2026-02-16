@@ -22,6 +22,7 @@
                 </button>
                 <span id="saveStatus"></span>
                 <button id="historyBtn" class="btn-secondary">📜 History</button>
+                <button id="resetBtn" class="btn-secondary">🔄 Reload from Source</button>
                 <button id="saveBtn" class="btn-primary">💾 Save Checkpoint</button>
             </div>
         </header>
@@ -679,6 +680,35 @@ sys.stdout = StringIO()
                 alert('Error restoring version');
             }
         }
+
+        // Reset to template
+        document.getElementById('resetBtn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to reload from source? This will replace your current code with the original template. Your current work will be saved as an auto-save, but you will start over with the template.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/code/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        game_id: gameId
+                    })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    editor.setValue(data.code);
+                    showSaveStatus('Reloaded from source! ✓', 3000);
+                } else {
+                    alert('Error resetting code: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Reset error:', error);
+                alert('Error resetting code');
+            }
+        });
 
         // Modal close buttons
         document.getElementById('closeHistoryBtn').addEventListener('click', () => {

@@ -518,6 +518,37 @@ def restore_version(version_id):
         'code': new_version.code
     }), 201
 
+@app.route('/api/code/reset', methods=['POST'])
+def reset_code():
+    """Reset code to the original template (creates a new version)"""
+    data = request.json
+    user_id = data.get('user_id')
+    game_id = data.get('game_id')
+
+    if not user_id or not game_id:
+        return jsonify({'error': 'user_id and game_id required'}), 400
+
+    game = db.session.get(Game, game_id)
+    if game is None:
+        return jsonify({'error': 'Game not found'}), 404
+
+    # Create new version with the template code
+    new_version = CodeVersion(
+        user_id=user_id,
+        game_id=game_id,
+        code=game.template_code,
+        message='Reset to original template',
+        is_checkpoint=True
+    )
+    db.session.add(new_version)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Code reset to template successfully',
+        'version_id': new_version.id,
+        'code': new_version.code
+    }), 201
+
 # Mission API Endpoints
 @app.route('/api/missions/<int:game_id>', methods=['GET'])
 def get_missions(game_id):
