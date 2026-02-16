@@ -2943,22 +2943,6 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
-# Initialize database at module level for Gunicorn (runs when app is imported)
-try:
-    with app.app_context():
-        # Only attempt init if not running flask CLI commands
-        if 'flask' not in sys.modules and 'click' not in sys.modules: 
-             # Wait, flask cli uses click. But importing app for Gunicorn also loads modules.
-             # Better check: is executed script not 'flask'?
-             # Actually, just try/except is simplest.
-             pass
-    
-    # We'll rely on the manual init_db call in main or gunicorn's hook if possible.
-    # But for now, let's just try/except it to be safe.
-    init_db()
-except Exception as e:
-    print(f"⚠️  Database initialization skipped (module level): {e}")
-
 if __name__ == '__main__':
     # Suppress resource tracker warnings from Werkzeug reloader
     # These are harmless and occur because Flask's dev server uses multiprocessing
