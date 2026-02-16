@@ -2960,7 +2960,7 @@ if __name__ == '__main__':
             print(f"⚠️  Database initialization skipped (startup): {e}")
 
     # Replit optimized: bind to 0.0.0.0 for external access
-    port = int(os.environ.get('PORT', 8443))
+    port = 5000
     is_debug = os.environ.get('FLASK_ENV') != 'production'
 
     try:
