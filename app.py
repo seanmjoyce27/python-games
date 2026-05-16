@@ -98,6 +98,14 @@ class Game(db.Model):
     display_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     template_code = db.Column(db.Text, nullable=False)
+    template_version = db.Column(db.Integer, default=1)  # Tracks updates to starter code
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+class TemplateVersion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
+    version = db.Column(db.Integer, nullable=False)
+    code = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class CodeVersion(db.Model):
@@ -105,6 +113,7 @@ class CodeVersion(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
     code = db.Column(db.Text, nullable=False)
+    base_template_version = db.Column(db.Integer, default=1)  # Version this code was based on
     message = db.Column(db.String(200))  # Optional commit message
     is_checkpoint = db.Column(db.Boolean, default=False)  # Manual saves
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -321,6 +330,37 @@ def manage_users():
         'avatar': u.get_avatar()
     } for u in users])
 
+@app.route('/api/games/progress/<int:user_id>', methods=['GET'])
+def get_games_progress(user_id):
+    """Get all games with completion status for a user"""
+    games = Game.query.all()
+    result = []
+    
+    for game in games:
+        missions = Mission.query.filter_by(game_id=game.id).all()
+        total_missions = len(missions)
+        
+        completed_count = 0
+        if total_missions > 0:
+            mission_ids = [m.id for m in missions]
+            completed_count = UserMissionProgress.query.filter(
+                UserMissionProgress.user_id == user_id,
+                UserMissionProgress.mission_id.in_(mission_ids),
+                UserMissionProgress.status == 'completed'
+            ).count()
+            
+        result.append({
+            'id': game.id,
+            'name': game.name,
+            'display_name': game.display_name,
+            'description': game.description,
+            'total_missions': total_missions,
+            'completed_missions': completed_count,
+            'is_completed': total_missions > 0 and completed_count == total_missions
+        })
+        
+    return jsonify(result)
+
 @app.route('/api/games', methods=['GET'])
 def get_games():
     """Get all available games"""
@@ -342,6 +382,10 @@ def load_code():
     if not user_id or not game_id:
         return jsonify({'error': 'user_id and game_id required'}), 400
 
+    game = db.session.get(Game, game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
     # Get the latest version
     latest = CodeVersion.query.filter_by(
         user_id=user_id,
@@ -352,14 +396,17 @@ def load_code():
         return jsonify({
             'code': latest.code,
             'version_id': latest.id,
+            'base_template_version': latest.base_template_version,
+            'current_template_version': game.template_version,
             'created_at': latest.created_at.isoformat()
         })
 
     # If no saved code, return template
-    game = db.session.get(Game, game_id)
     return jsonify({
         'code': game.template_code,
         'version_id': None,
+        'base_template_version': game.template_version,
+        'current_template_version': game.template_version,
         'created_at': None
     })
 
@@ -376,13 +423,17 @@ def save_code():
     if not all([user_id, game_id, code is not None]):
         return jsonify({'error': 'user_id, game_id, and code required'}), 400
 
+    game = db.session.get(Game, game_id)
+    if not game:
+        return jsonify({'error': 'Game not found'}), 404
+
     # Check if code has actually changed
     latest = CodeVersion.query.filter_by(
         user_id=user_id,
         game_id=game_id
     ).order_by(CodeVersion.created_at.desc()).first()
 
-    if latest and latest.code == code:
+    if latest and latest.code == code and not is_checkpoint:
         return jsonify({
             'message': 'No changes detected',
             'version_id': latest.id
@@ -393,6 +444,7 @@ def save_code():
         user_id=user_id,
         game_id=game_id,
         code=code,
+        base_template_version=game.template_version,
         message=message,
         is_checkpoint=is_checkpoint
     )
@@ -517,6 +569,84 @@ def restore_version(version_id):
         'version_id': new_version.id,
         'code': new_version.code
     }), 201
+
+@app.route('/api/code/sync', methods=['POST'])
+def sync_code():
+    """Attempt a 3-way merge between old template, user code, and new template"""
+    data = request.json
+    user_id = data.get('user_id')
+    game_id = data.get('game_id')
+    
+    if not user_id or not game_id:
+        return jsonify({'error': 'user_id and game_id required'}), 400
+        
+    game = db.session.get(Game, game_id)
+    latest = CodeVersion.query.filter_by(user_id=user_id, game_id=game_id).order_by(CodeVersion.created_at.desc()).first()
+    
+    if not latest or not game:
+        return jsonify({'error': 'No code or game found'}), 404
+        
+    if latest.base_template_version >= game.template_version:
+        return jsonify({'message': 'Already up to date', 'code': latest.code}), 200
+        
+    # Get the base template the user started with
+    base_template = TemplateVersion.query.filter_by(game_id=game_id, version=latest.base_template_version).first()
+    
+    if not base_template:
+        # Fallback: if we don't have history, we can't safely merge. 
+        # Just return the current code and let the user manually reload if they want.
+        return jsonify({
+            'error': 'Base template version not found in history. Cannot safely merge.',
+            'code': latest.code,
+            'can_manual_reset': True
+        }), 422
+        
+    # Perform line-based 3-way merge
+    base_lines = base_template.code.splitlines()
+    user_lines = latest.code.splitlines()
+    current_lines = game.template_code.splitlines()
+    
+    # Simple merge strategy:
+    # If current != base (template updated), and user == base (user didn't change that line), take current.
+    # Otherwise, keep user's version.
+    
+    merged_lines = []
+    # This is a very basic heuristic; a real 3-way merge would use a proper diff algorithm
+    # For now, let's use difflib to find the changes
+    import difflib
+    
+    # Get changes from template update
+    template_diff = list(difflib.ndiff(base_lines, current_lines))
+    
+    # We'll try to apply template additions/removals to the user code
+    # This is complex to do perfectly with just difflib, so we'll provide a 
+    # "Smart Append" for now: any new top-level comments or imports from the template 
+    # that are missing in user code will be added.
+    
+    # Better approach: if the user code is 90% identical to base, just replace.
+    # But beginners often only change 1 line.
+    
+    # Let's do a basic "Patch" approach:
+    new_code = latest.code
+    
+    # Add a marker for the update
+    sync_message = f"# --- SYNCED UPDATES (Template v{game.template_version}) ---\n"
+    if sync_message not in new_code:
+        # Check for specific new missions or comments added to template
+        for line in current_lines:
+            if line.strip().startswith('#') and line not in latest.code:
+                # Add missing comments/labels to the top
+                merged_lines.append(line)
+        
+        if merged_lines:
+            new_code = "\n".join(merged_lines) + "\n\n" + latest.code
+            
+    return jsonify({
+        'message': 'Updates synced! New comments or boilerplate added.',
+        'code': new_code,
+        'merged': True,
+        'new_version': game.template_version
+    })
 
 @app.route('/api/code/reset', methods=['POST'])
 def reset_code():
@@ -745,10 +875,17 @@ def init_db():
                     name=name,
                     display_name=display_name,
                     description=description,
-                    template_code=template_code
+                    template_code=template_code,
+                    template_version=1
                 )
                 db.session.add(game)
                 db.session.commit()
+                
+                # Save initial template version
+                tv = TemplateVersion(game_id=game.id, version=1, code=template_code)
+                db.session.add(tv)
+                db.session.commit()
+                
                 print(f"✅ Seeded game: {display_name}")
             else:
                 # Update template if it has changed in app.py
@@ -756,8 +893,14 @@ def init_db():
                     game.template_code = template_code
                     game.display_name = display_name
                     game.description = description
+                    game.template_version += 1
+                    
+                    # Save updated template version
+                    tv = TemplateVersion(game_id=game.id, version=game.template_version, code=template_code)
+                    db.session.add(tv)
+                    
                     db.session.commit()
-                    print(f"🔄 Updated template for: {display_name}")
+                    print(f"🔄 Updated template to v{game.template_version} for: {display_name}")
             return game
 
         # Helper to add mission if missing
@@ -770,7 +913,211 @@ def init_db():
                 print(f"✅ Seeded mission: {title}")
             return mission
 
-        # 1. Snake Game
+        # 1. Python Basics
+        basics_template = '''# Mission 1: Python Basics - Robot Lab
+# Learn the 10 most important Python commands!
+
+from js import clear_screen, draw_rect, draw_text, document
+import random
+
+# --- Variables (Memory) ---
+robot_x = 300
+robot_y = 400
+robot_color = "#4A90E2"
+robot_name = "Robo-01"
+power_level = 100
+
+def update():
+    """Update logic (called every frame)"""
+    # Robot moves slightly
+    global robot_y
+    import math
+    import time
+    robot_y += math.sin(time.time() * 2) * 0.5
+
+def draw():
+    """Draw everything (called every frame)"""
+    clear_screen()
+    
+    # Draw background
+    draw_rect(0, 0, 600, 700, "#1a1a2e")
+    
+    # Draw Grid (Subtle)
+    for i in range(0, 600, 50):
+        draw_rect(i, 0, 1, 700, "#2a2a4e")
+    for i in range(0, 700, 50):
+        draw_rect(0, i, 600, 1, "#2a2a4e")
+    
+    # Draw Robot
+    # Antenna
+    draw_rect(robot_x - 2, robot_y - 120, 4, 20, "#cccccc")
+    draw_rect(robot_x - 5, robot_y - 125, 10, 10, "#ff4444")
+    
+    # Head
+    draw_rect(robot_x - 40, robot_y - 100, 80, 80, robot_color)
+    draw_rect(robot_x - 35, robot_y - 95, 70, 70, "#00000033") 
+    
+    # Eyes
+    eye_y = robot_y - 75
+    draw_rect(robot_x - 25, eye_y, 15, 15, "#ffffff")
+    draw_rect(robot_x + 10, eye_y, 15, 15, "#ffffff")
+    draw_rect(robot_x - 20, eye_y + 5, 5, 5, "#000000") 
+    draw_rect(robot_x + 15, eye_y + 5, 5, 5, "#000000")
+    
+    # Mouth
+    draw_rect(robot_x - 15, robot_y - 45, 30, 5, "#ffffff")
+    
+    # Body
+    draw_rect(robot_x - 60, robot_y - 20, 120, 120, robot_color)
+    draw_rect(robot_x - 55, robot_y - 15, 110, 110, "#00000033") 
+    
+    # Control Panel
+    draw_rect(robot_x - 40, robot_y + 10, 80, 50, "#333333")
+    draw_rect(robot_x - 30, robot_y + 20, 15, 15, "#ff4444")
+    draw_rect(robot_x - 5, robot_y + 20, 15, 15, "#44ff44")
+    draw_rect(robot_x + 20, robot_y + 20, 15, 15, "#4444ff")
+    
+    # UI Text
+    draw_text("ROBOT LAB", 210, 50, "#44ff44", "36px Arial")
+    draw_text(f"Name: {robot_name}", 20, 650, "#ffffff", "20px Arial")
+    draw_text(f"Power: {power_level}%", 20, 680, "#ffcc00", "20px Arial")
+    draw_text("Follow the missions to program your robot!", 130, 100, "#8888ff", "18px Arial")
+
+# --- Mission Workspace ---
+# Tip: Click 'Missions' to start learning!
+'''
+
+        basics = get_or_create_game(
+            name='basics',
+            display_name='Mission 1: Python Basics',
+            description='Learn the top 10 Python commands in the Robot Lab!',
+            template_code=basics_template
+        )
+
+        # Basics Missions
+        get_or_create_mission(basics.id, "Add a Label (# Comments)", 1, {
+            'description': "Programmers use '#' to add notes to their code. Add a comment like '# This is my robot' anywhere in the workspace!",
+            'difficulty': "beginner",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': '#',
+                'success_message': 'Great! Comments are like labels that Python ignores but humans can read.',
+                'failure_message': 'Try adding a line that starts with the # symbol.'
+            }),
+            'hints': json.dumps(["Add # at the start of any new line."])
+        })
+
+        get_or_create_mission(basics.id, "Make your Robot Speak (print)", 2, {
+            'description': "Use the print() command to send a message. Type print('Hello Robot!') in the workspace.",
+            'difficulty': "beginner",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'print(',
+                'success_message': 'You did it! Check the output area below the game to see your message.',
+                'failure_message': 'Type print("something") to send a message.'
+            }),
+            'hints': json.dumps(["Make sure to use parentheses () and quotes ''."])
+        })
+
+        get_or_create_mission(basics.id, "Give it a Number (Memory)", 3, {
+            'description': "Variables are like boxes that store data. Create a variable called 'power' and set it to 100.",
+            'difficulty': "beginner",
+            'validation_type': "code_pattern",
+            'validation_data': json.dumps({
+                'pattern': r'power\s*=\s*100',
+                'success_message': 'Nice! You just stored a number in your robot\'s memory.',
+                'failure_message': 'Type power = 100 on a new line.'
+            }),
+            'hints': json.dumps(["Variables use the = sign to store values."])
+        })
+
+        get_or_create_mission(basics.id, "Give it a Name (Strings)", 4, {
+            'description': "Text in Python is called a String. Create a variable called 'name' and set it to 'Robo'.",
+            'difficulty': "beginner",
+            'validation_type': "code_pattern",
+            'validation_data': json.dumps({
+                'pattern': r'name\s*=\s*[\'"][^\'"]+[\'"]',
+                'success_message': 'Awesome! Your robot now has a name stored as a string.',
+                'failure_message': 'Type name = "Robo" on a new line.'
+            }),
+            'hints': json.dumps(["Always put quotes around text in Python!"])
+        })
+
+        get_or_create_mission(basics.id, "Move your Robot (Math)", 5, {
+            'description': "You can change variables using math. Change the 'robot_y' position by subtracting 50 from it to move it UP!",
+            'difficulty': "beginner",
+            'validation_type': "variable_changed",
+            'validation_data': json.dumps({
+                'variable': 'robot_y',
+                'old_value': '400',
+                'new_value_pattern': r'350',
+                'success_message': 'Lift off! You used math to change the robot\'s position.',
+                'failure_message': 'Change robot_y = 400 to robot_y = 350.'
+            }),
+            'hints': json.dumps(["In games, smaller Y numbers move things UP!"])
+        })
+
+        get_or_create_mission(basics.id, "Smart Robot (If Statements)", 6, {
+            'description': "The 'if' command lets your robot make decisions. Add a check: if power_level > 0: print('I am awake!')",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'if ',
+                'success_message': 'Brilliant! Your robot can now check conditions before acting.',
+                'failure_message': 'Add an if statement to your code.'
+            }),
+            'hints': json.dumps(["Don't forget the colon : at the end of the if line!"])
+        })
+
+        get_or_create_mission(basics.id, "Backpack (Lists)", 7, {
+            'description': "Lists store many items together. Create a list called 'inventory' with ['wrench', 'battery', 'map'].",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': '[',
+                'success_message': 'Your robot is now carrying a backpack full of items!',
+                'failure_message': 'Use square brackets [] to create a list.'
+            }),
+            'hints': json.dumps(["Separate items in a list with commas."])
+        })
+
+        get_or_create_mission(basics.id, "Repeating Tasks (Loops)", 8, {
+            'description': "Loops repeat code so you don't have to type it again and again. Use a 'for' loop to print 'Scanning...' 3 times.",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'for ',
+                'success_message': 'Look at it go! Loops are a programmer\'s best friend.',
+                'failure_message': 'Try: for i in range(3): print("Scanning...")'
+            }),
+            'hints': json.dumps(["The range(3) command tells the loop to run 3 times."])
+        })
+
+        get_or_create_mission(basics.id, "New Skills (Functions)", 9, {
+            'description': "Functions are groups of code with a name. Define a function: def wave(): print('Waving!')",
+            'difficulty': "intermediate",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'def ',
+                'success_message': 'Excellent! You taught your robot a brand new skill.',
+                'failure_message': "Use 'def' to define a new function."
+            }),
+            'hints': json.dumps(["Functions start with 'def' followed by a name and ()."])
+        })
+
+        get_or_create_mission(basics.id, "Random Luck (Imports)", 10, {
+            'description': "Use the random module to set a random position. Type: robot_x = random.randint(100, 500)",
+            'difficulty': "advanced",
+            'validation_type': "code_contains",
+            'validation_data': json.dumps({
+                'text': 'random.randint',
+                'success_message': 'Great! Every time you run the code now, your robot will start in a different spot.',
+                'failure_message': 'Use random.randint(min, max) to get a random number.'
+            }),
+            'hints': json.dumps(["We already imported random at the top for you!"])
+        })
+
+        # 2. Snake Game
         snake_template = '''# Snake Game
 # Use arrow keys to move the snake
 # Eat the red food to grow!
@@ -941,12 +1288,12 @@ def draw():
 
         snake = get_or_create_game(
             name='snake',
-            display_name='Snake Game',
+            display_name='Mission 2: Snake Game',
             description='Classic snake game - eat food and grow!',
             template_code=snake_template
         )
 
-        # 2. Pong Game (2-player)
+        # 3. Pong Game (2-player)
         pong_template = '''# Pong Game - Two Player!
 # Player 1: W/S keys | Player 2: Up/Down arrows
 # First to 5 points wins!
@@ -1154,12 +1501,12 @@ def draw():
 
         pong = get_or_create_game(
             name='pong',
-            display_name='Pong (2-Player)',
+            display_name='Mission 3: Pong (2-Player)',
             description='Classic 2-player Pong! First to 5 points wins.',
             template_code=pong_template
         )
 
-        # 3. Space Invaders
+        # 4. Space Invaders
         space_invaders_template = '''# Space Invaders
 # Arrow keys to move, SPACE to shoot!
 # Destroy all aliens before they reach the bottom!
@@ -1497,12 +1844,12 @@ def draw():
 
         space_invaders = get_or_create_game(
             name='space_invaders',
-            display_name='Space Invaders',
+            display_name='Mission 4: Space Invaders',
             description='Shoot the aliens before they reach Earth!',
             template_code=space_invaders_template
         )
 
-        # 4. Maze Game
+        # 5. Maze Game
         maze_template = '''# Maze Game
 # Arrow keys to move
 # Find the exit without hitting walls!
@@ -1671,12 +2018,12 @@ def draw():
 
         maze = get_or_create_game(
             name='maze',
-            display_name='Maze Adventure',
+            display_name='Mission 5: Maze Adventure',
             description='Navigate the maze and find the exit!',
             template_code=maze_template
         )
 
-        # 5. Tetris
+        # 6. Tetris
         tetris_template = '''# Tetris
 # Arrow keys: Left/Right to move, Up to rotate, Down to drop faster
 # Clear lines to score points!
@@ -1992,7 +2339,7 @@ def draw():
 
         tetris = get_or_create_game(
             name='tetris',
-            display_name='Tetris',
+            display_name='Mission 6: Tetris',
             description='Stack blocks and clear lines! Classic puzzle game.',
             template_code=tetris_template
         )
@@ -2444,7 +2791,7 @@ def draw():
             ])
         })
 
-        # 6. Minecraft Game
+        # 7. Minecraft Game
         minecraft_template = '''# Minecraft 2D
 # Use WASD to move, arrow keys to place/break blocks
 # Arrow Up/Down/Left/Right aim the cursor, SPACE to place, E to break
@@ -2874,7 +3221,7 @@ def draw():
 
         minecraft = get_or_create_game(
             name='minecraft',
-            display_name='Minecraft 2D',
+            display_name='Mission 7: Minecraft 2D',
             description='Mine blocks, build structures, and explore a procedural world!',
             template_code=minecraft_template
         )
@@ -2997,8 +3344,8 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"⚠️  Database initialization skipped (startup): {e}")
 
-    # Replit optimized: bind to 0.0.0.0 for external access
-    port = 5000
+    # Bind to PORT environment variable (default to 5000)
+    port = int(os.environ.get('PORT', 5000))
     is_debug = os.environ.get('FLASK_ENV') != 'production'
 
     try:

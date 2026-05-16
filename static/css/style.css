@@ -1423,6 +1423,161 @@ canvas {
     font-size: 16px;
 }
 
+/* Game Progress Bar */
+.game-progress-container {
+    padding: 10px 20px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+.progress-bar-outer {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+    width: 0%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Syntax Status */
+.syntax-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #f1f5f9;
+}
+
+.syntax-status.valid { color: #10b981; }
+.syntax-status.invalid { color: #ef4444; }
+
+/* Interactive Highlights */
+@keyframes guidePulse {
+    0% { outline: 0px solid rgba(102, 126, 234, 0); outline-offset: 0px; }
+    50% { outline: 4px solid rgba(102, 126, 234, 0.5); outline-offset: 4px; }
+    100% { outline: 0px solid rgba(102, 126, 234, 0); outline-offset: 0px; }
+}
+
+.guide-highlight {
+    animation: guidePulse 1.5s infinite;
+    z-index: 50;
+    position: relative;
+}
+
+/* Curriculum Path Layout */
+.mission-path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    padding: 40px 0;
+    position: relative;
+}
+
+.mission-path::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    background: #e2e8f0;
+    transform: translateX(-50%);
+    z-index: 0;
+}
+
+.path-node {
+    z-index: 1;
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+}
+
+.path-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    transition: all 0.3s;
+    border: 3px solid transparent;
+    text-decoration: none;
+    color: inherit;
+}
+
+.path-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.path-card.locked {
+    opacity: 0.7;
+    filter: grayscale(1);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.path-card.current {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+}
+
+.node-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.node-info {
+    flex: 1;
+}
+
+.node-info h3 {
+    margin: 0 0 5px 0;
+    color: #1e293b;
+}
+
+.node-info p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #64748b;
+}
+
+.node-status {
+    font-size: 20px;
+}
+
+.path-node:nth-child(even) .path-card {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .leaderboard-entry {

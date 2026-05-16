@@ -50,8 +50,18 @@
             </div>
             <div class="active-mission-actions">
                 <button id="showHintsBannerBtn" class="btn-hint-small">💡 Hints</button>
-                <button id="validateBannerBtn" class="btn-check-small">✓ Check Code</button>
+                <button id="validateBannerBtn" class="btn-check-small">✓ Check Mission</button>
                 <button id="closeMissionBanner" class="btn-close-small">×</button>
+            </div>
+        </div>
+
+        <div class="game-progress-container">
+            <div class="progress-label">
+                <span>Game Progress</span>
+                <span id="progressText">0/0 Missions</span>
+            </div>
+            <div class="progress-bar-outer">
+                <div id="progressBarInner" class="progress-bar-inner" style="width: 0%;"></div>
             </div>
         </div>
 
@@ -59,12 +69,19 @@
             <div class="editor-panel">
                 <div class="panel-header">
                     <h3>Your Code</h3>
-                    <button id="runBtn" class="btn-run">▶ Run Code</button>
+                    <div class="game-controls">
+                        <button id="runBtn" class="btn-run">▶ Run Code</button>
+                        <button id="runCheckBtn" class="btn-success" style="display: none;">▶ Run & Check Mission</button>
+                    </div>
                 </div>
                 <div id="gameError" class="error-message"></div>
                 <textarea id="codeEditor">{{ game.template_code }}</textarea>
                 <div class="editor-footer">
                     <span id="lineCount"></span>
+                    <div id="syntaxStatus" class="syntax-status">
+                        <span class="status-icon">✓</span>
+                        <span class="status-text">Syntax OK</span>
+                    </div>
                 </div>
             </div>
 
@@ -177,7 +194,45 @@
         editor.on('change', () => {
             const lines = editor.lineCount();
             document.getElementById('lineCount').textContent = `${lines} lines`;
+            
+            // Debounced syntax check
+            clearTimeout(window.syntaxTimeout);
+            window.syntaxTimeout = setTimeout(checkSyntax, 1000);
         });
+
+        async function checkSyntax() {
+            if (!pyodide) return;
+            const code = editor.getValue();
+            const statusDiv = document.getElementById('syntaxStatus');
+            const icon = statusDiv.querySelector('.status-icon');
+            const text = statusDiv.querySelector('.status-text');
+
+            try {
+                // Background compile check (doesn't execute)
+                pyodide.runPython(`compile(${JSON.stringify(code)}, '<string>', 'exec')`);
+                statusDiv.className = 'syntax-status valid';
+                icon.textContent = '✓';
+                text.textContent = 'Syntax OK';
+            } catch (error) {
+                statusDiv.className = 'syntax-status invalid';
+                icon.textContent = '⚠️';
+                text.textContent = 'Syntax Error';
+            }
+        }
+
+        function updateProgressBar() {
+            if (!missions.length) return;
+            const completedCount = missions.filter(m => {
+                const progress = missionProgress[m.id] || { status: 'not_started' };
+                return progress.status === 'completed';
+            }).length;
+            
+            const total = missions.length;
+            const percentage = (completedCount / total) * 100;
+            
+            document.getElementById('progressBarInner').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${completedCount}/${total} Missions`;
+        }
 
         // Initialize Pyodide
         async function initPyodide() {
@@ -205,9 +260,60 @@
                 const data = await response.json();
                 if (data.code) {
                     editor.setValue(data.code);
+                    
+                    // Check for template updates
+                    if (data.base_template_version < data.current_template_version) {
+                        showUpdateNotification();
+                    }
                 }
             } catch (error) {
                 console.error('Error loading code:', error);
+            }
+        }
+
+        function showUpdateNotification() {
+            const output = document.getElementById('gameOutput');
+            const notification = document.createElement('div');
+            notification.className = 'mission-feedback info';
+            notification.style.background = '#e0e7ff';
+            notification.style.color = '#3730a3';
+            notification.style.borderColor = '#667eea';
+            notification.innerHTML = `
+                <p><strong>🚀 Update Available!</strong> We've improved the starter code for this game. Would you like to sync the new changes (like new missions or comments) into your current code?</p>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="syncBtn" class="btn-primary btn-sm">Sync Updates</button>
+                    <button id="ignoreUpdateBtn" class="btn-secondary btn-sm">Not Now</button>
+                </div>
+            `;
+            output.prepend(notification);
+            
+            document.getElementById('syncBtn').addEventListener('click', async () => {
+                await syncCode();
+                notification.remove();
+            });
+            
+            document.getElementById('ignoreUpdateBtn').addEventListener('click', () => {
+                notification.remove();
+            });
+        }
+
+        async function syncCode() {
+            try {
+                const response = await fetch('/api/code/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, game_id: gameId })
+                });
+                const data = await response.json();
+                if (data.code) {
+                    editor.setValue(data.code);
+                    showSaveStatus('Updates synced! ✓', 3000);
+                    // Save the synced version automatically
+                    autoSave();
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                alert('Failed to sync updates.');
             }
         }
 
@@ -781,6 +887,9 @@ sys.stdout = StringIO()
                 return;
             }
 
+            // Update global progress bar
+            updateProgressBar();
+
             // Add welcome banner
             const welcomeBanner = `
                 <div class="mission-welcome-banner">
@@ -901,12 +1010,17 @@ sys.stdout = StringIO()
             document.getElementById('missionModal').style.display = 'flex';
         }
 
-        // Update active mission banner
+        // Update active mission banner and UI highlights
         function updateActiveMissionBanner() {
             const banner = document.getElementById('activeMissionBanner');
+            const runBtn = document.getElementById('runBtn');
+            const runCheckBtn = document.getElementById('runCheckBtn');
 
             if (!currentMission) {
                 banner.style.display = 'none';
+                runBtn.style.display = 'inline-block';
+                runCheckBtn.style.display = 'none';
+                clearHighlights();
                 return;
             }
 
@@ -916,10 +1030,58 @@ sys.stdout = StringIO()
                 document.getElementById('activeMissionTitle').textContent = `Mission ${currentMission.order}: ${currentMission.title}`;
                 document.getElementById('activeMissionDesc').textContent = currentMission.description;
                 banner.style.display = 'flex';
+                
+                // Show unified Run & Check button
+                runBtn.style.display = 'none';
+                runCheckBtn.style.display = 'inline-block';
+                
+                // Guidance highlights for basics game
+                updateGuidance(currentMission.order);
             } else {
                 banner.style.display = 'none';
+                runBtn.style.display = 'inline-block';
+                runCheckBtn.style.display = 'none';
+                clearHighlights();
             }
         }
+
+        function updateGuidance(order) {
+            clearHighlights();
+            // Guidance logic for Mission 1 (Basics)
+            if (gameId === 1 || "{{ game.name }}" === "basics") {
+                if (order === 1) { // Comments
+                    highlightElement('.editor-panel');
+                } else if (order === 2) { // Speak (print)
+                    highlightElement('.editor-panel');
+                    highlightElement('#gameOutput');
+                } else if (order === 5) { // Movement (math)
+                    highlightElement('.editor-panel');
+                    highlightElement('#canvas');
+                } else {
+                    highlightElement('.editor-panel');
+                }
+            }
+        }
+
+        function highlightElement(selector) {
+            const el = document.querySelector(selector);
+            if (el) el.classList.add('guide-highlight');
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.guide-highlight').forEach(el => {
+                el.classList.remove('guide-highlight');
+            });
+        }
+
+        // Combined Run & Check
+        document.getElementById('runCheckBtn').addEventListener('click', async () => {
+            // First run the code
+            document.getElementById('runBtn').click();
+            
+            // Then validate (with a small delay to let the run output settle)
+            setTimeout(validateCurrentMission, 500);
+        });
 
         // Start mission
         document.getElementById('startMissionBtn').addEventListener('click', async () => {
@@ -1041,7 +1203,12 @@ sys.stdout = StringIO()
                     feedbackDiv.textContent = result.feedback;
 
                     // Show in modal
-                    showMissionDetail(currentMission.id);
+                    if (result.success) {
+                        updateActiveMissionBanner(); // Will hide it
+                    } else {
+                        showMissionDetail(currentMission.id);
+                    }
+
                 }
 
             } catch (error) {
@@ -1085,6 +1252,16 @@ sys.stdout = StringIO()
         // Load missions when user is selected and auto-show on page load
         if (userId) {
             loadMissions().then(() => {
+                // Check if any mission is in progress and set it
+                const inProgress = missions.find(m => {
+                    const progress = missionProgress[m.id] || { status: 'not_started' };
+                    return progress.status === 'in_progress';
+                });
+                if (inProgress) {
+                    currentMission = inProgress;
+                    updateActiveMissionBanner();
+                }
+
                 // Auto-show missions overlay on page load
                 setTimeout(() => {
                     document.getElementById('missionsOverlay').classList.add('active');

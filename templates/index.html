@@ -34,17 +34,9 @@
         </section>
 
         <section class="games-section" id="gamesSection" style="display: none;">
-            <h2>Choose Your Game</h2>
-            <div class="games-grid">
-                {% for game in games %}
-                <div class="game-card">
-                    <h3>{{ game.display_name }}</h3>
-                    <p>{{ game.description }}</p>
-                    <button class="btn-play" data-game-id="{{ game.id }}">
-                        Start Coding
-                    </button>
-                </div>
-                {% endfor %}
+            <h2>Your Coding Journey</h2>
+            <div class="mission-path" id="missionPath">
+                <!-- Mission nodes will be loaded here -->
             </div>
         </section>
     </div>
@@ -64,6 +56,49 @@
 
     <script>
         let selectedUserId = null;
+
+        // Load games progress and render path
+        async function loadGamesPath(userId) {
+            try {
+                const response = await fetch(`/api/games/progress/${userId}`);
+                const games = await response.json();
+                
+                const container = document.getElementById('missionPath');
+                document.getElementById('gamesSection').style.display = 'block';
+                
+                let prevCompleted = true; // First game is always unlocked
+                
+                container.innerHTML = games.map((game, index) => {
+                    const isLocked = !prevCompleted;
+                    const isCurrent = prevCompleted && !game.is_completed;
+                    const status = game.is_completed ? '✅ Completed' : (isLocked ? '🔒 Locked' : '🚀 In Progress');
+                    const icon = game.is_completed ? '⭐' : (isLocked ? '🔒' : '🎮');
+                    
+                    // Update prevCompleted for next iteration
+                    prevCompleted = game.is_completed;
+                    
+                    return `
+                        <div class="path-node">
+                            <a href="${isLocked ? '#' : `/game/${game.id}?user_id=${userId}`}" 
+                               class="path-card ${isLocked ? 'locked' : ''} ${isCurrent ? 'current' : ''}">
+                                <div class="node-icon">${icon}</div>
+                                <div class="node-info">
+                                    <h3>${game.display_name}</h3>
+                                    <p>${game.description}</p>
+                                    <div class="info" style="padding: 5px 0; text-align: left;">
+                                        ${game.completed_missions}/${game.total_missions} Missions Done
+                                    </div>
+                                </div>
+                                <div class="node-status">${game.is_completed ? '✅' : (isLocked ? '' : '👉')}</div>
+                            </a>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading games path:', error);
+            }
+        }
 
         // Load leaderboard
         async function loadLeaderboard() {
@@ -153,7 +188,7 @@
                         selectedUserId = this.dataset.userId;
                         document.querySelectorAll('.avatar-card.active').forEach(c => c.classList.remove('selected'));
                         this.classList.add('selected');
-                        document.getElementById('gamesSection').style.display = 'block';
+                        loadGamesPath(selectedUserId);
                     });
                 });
 
@@ -211,12 +246,12 @@
                     await loadActiveUsers();
 
                     // Auto-select the new user
-                    setTimeout(() => {
-                        const userCard = document.querySelector(`[data-user-id="${user.id}"]`);
-                        if (userCard) {
-                            userCard.click();
-                        }
-                    }, 100);
+                    selectedUserId = user.id;
+                    const userCard = document.querySelector(`[data-user-id="${user.id}"]`);
+                    if (userCard) {
+                        userCard.classList.add('selected');
+                        loadGamesPath(selectedUserId);
+                    }
                 } else {
                     const error = await response.json();
                     alert(error.error || 'Failed to create user');
@@ -236,18 +271,6 @@
         // Close modal
         document.getElementById('closeAvatarModal').addEventListener('click', () => {
             document.getElementById('avatarModal').style.display = 'none';
-        });
-
-        // Game selection
-        document.querySelectorAll('.btn-play').forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (!selectedUserId) {
-                    alert('Please select a coder first!');
-                    return;
-                }
-                const gameId = this.dataset.gameId;
-                window.location.href = `/game/${gameId}?user_id=${selectedUserId}`;
-            });
         });
 
         // Load leaderboard and active users on page load

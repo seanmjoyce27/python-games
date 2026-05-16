@@ -8,6 +8,7 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 
 
 def is_port_in_use(port):
@@ -93,6 +94,10 @@ def test_port_can_be_reused():
 def test_flask_app_releases_port():
     """Test that Flask app properly releases port on shutdown"""
     port = 8444  # Use different port to avoid conflicts with main app
+    
+    # Use a temporary database for the subprocess
+    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(db_fd)
 
     # Ensure port is free
     kill_process_on_port(port)
@@ -102,6 +107,7 @@ def test_flask_app_releases_port():
     env = os.environ.copy()
     env['PORT'] = str(port)
     env['FLASK_ENV'] = 'production'  # Disable reloader
+    env['DATABASE_URL'] = f'sqlite:///{db_path}'
 
     process = subprocess.Popen(
         [sys.executable, 'app.py'],
@@ -110,27 +116,48 @@ def test_flask_app_releases_port():
         stderr=subprocess.PIPE
     )
 
-    # Wait for server to start
-    time.sleep(2)
-
-    # Port should be in use
-    assert is_port_in_use(port), f"Port {port} should be in use by Flask app"
-
-    # Stop the server with SIGTERM
-    process.terminate()
-
-    # Wait for process to exit
     try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        # Force kill if it doesn't terminate gracefully
-        process.kill()
-        process.wait()
+        # Wait for server to start - give it more time and check more frequently
+        start_time = time.time()
+        success = False
+        while time.time() - start_time < 10:
+            if is_port_in_use(port):
+                success = True
+                break
+            time.sleep(0.5)
 
-    time.sleep(1)
+        # Port should be in use
+        if not success:
+            stdout, stderr = process.communicate(timeout=1)
+            print(f"STDOUT: {stdout.decode()}")
+            print(f"STDERR: {stderr.decode()}")
+        assert success, f"Port {port} should be in use by Flask app"
 
-    # Port should be available again
-    assert not is_port_in_use(port), f"Port {port} should be available after Flask shutdown"
+        # Stop the server with SIGTERM
+        process.terminate()
+
+        # Wait for process to exit
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            # Force kill if it doesn't terminate gracefully
+            process.kill()
+            process.wait()
+
+        time.sleep(1)
+
+        # Port should be available again
+        assert not is_port_in_use(port), f"Port {port} should be available after Flask shutdown"
+    finally:
+        # Cleanup process if still running
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+        # Cleanup temp db
+        try:
+            os.unlink(db_path)
+        except Exception:
+            pass
 
 
 def test_so_reuseaddr_flag():
