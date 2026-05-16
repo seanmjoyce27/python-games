@@ -148,6 +148,7 @@
                             avatarCard.classList.add('selected');
                             selectedUserId = userId;
                             document.getElementById('gamesSection').style.display = 'block';
+                            loadGamesPath(selectedUserId);
 
                             // Scroll to games section
                             document.getElementById('gamesSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });

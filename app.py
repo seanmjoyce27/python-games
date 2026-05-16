@@ -740,7 +740,8 @@ def mission_progress(mission_id):
                 user_id=user_id,
                 mission_id=mission_id,
                 status='in_progress',
-                started_at=datetime.now(timezone.utc)
+                started_at=datetime.now(timezone.utc),
+                attempts=0
             )
             db.session.add(progress)
         else:
@@ -781,11 +782,12 @@ def validate_mission(mission_id):
             user_id=user_id,
             mission_id=mission_id,
             status='in_progress',
-            started_at=datetime.now(timezone.utc)
+            started_at=datetime.now(timezone.utc),
+            attempts=0
         )
         db.session.add(progress)
 
-    progress.attempts += 1
+    progress.attempts = (progress.attempts or 0) + 1
 
     # Parse validation data
     validation_criteria = json.loads(mission.validation_data) if mission.validation_data else {}
@@ -911,6 +913,16 @@ def init_db():
                 db.session.add(mission)
                 db.session.commit()
                 print(f"✅ Seeded mission: {title}")
+            else:
+                desired = {'order': order, **data}
+                changed = False
+                for field, value in desired.items():
+                    if getattr(mission, field) != value:
+                        setattr(mission, field, value)
+                        changed = True
+                if changed:
+                    db.session.commit()
+                    print(f"🔄 Updated mission: {title}")
             return mission
 
         # 1. Python Basics
@@ -984,6 +996,8 @@ def draw():
     draw_text("Follow the missions to program your robot!", 130, 100, "#8888ff", "18px Arial")
 
 # --- Mission Workspace ---
+# Start here. Put your mission code under these notes.
+# The Coding Coach can add each tiny step for you.
 # Tip: Click 'Missions' to start learning!
 '''
 
@@ -996,19 +1010,23 @@ def draw():
 
         # Basics Missions
         get_or_create_mission(basics.id, "Add a Label (# Comments)", 1, {
-            'description': "Programmers use '#' to add notes to their code. Add a comment like '# This is my robot' anywhere in the workspace!",
+            'description': "Tiny step: add this exact note under Mission Workspace: # This is my robot",
             'difficulty': "beginner",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
-                'text': '#',
-                'success_message': 'Great! Comments are like labels that Python ignores but humans can read.',
-                'failure_message': 'Try adding a line that starts with the # symbol.'
+                'text': '# This is my robot',
+                'success_message': 'Great! Comments are notes Python skips but people can read.',
+                'failure_message': 'Add this exact line under Mission Workspace: # This is my robot'
             }),
-            'hints': json.dumps(["Add # at the start of any new line."])
+            'hints': json.dumps([
+                "Use the Coding Coach on the left.",
+                "A comment starts with #.",
+                "The exact line is: # This is my robot"
+            ])
         })
 
         get_or_create_mission(basics.id, "Make your Robot Speak (print)", 2, {
-            'description': "Use the print() command to send a message. Type print('Hello Robot!') in the workspace.",
+            'description': "Tiny step: add print(\"Hello Robot!\") under Mission Workspace, then run it.",
             'difficulty': "beginner",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -1016,35 +1034,47 @@ def draw():
                 'success_message': 'You did it! Check the output area below the game to see your message.',
                 'failure_message': 'Type print("something") to send a message.'
             }),
-            'hints': json.dumps(["Make sure to use parentheses () and quotes ''."])
+            'hints': json.dumps([
+                "Use parentheses after print.",
+                "Put the words inside quotes.",
+                "Try: print(\"Hello Robot!\")"
+            ])
         })
 
         get_or_create_mission(basics.id, "Give it a Number (Memory)", 3, {
-            'description': "Variables are like boxes that store data. Create a variable called 'power' and set it to 100.",
+            'description': "Tiny step: create a number box by adding power = 100.",
             'difficulty': "beginner",
             'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'pattern': r'power\s*=\s*100',
+                'pattern': r'^power\s*=\s*100\s*$',
                 'success_message': 'Nice! You just stored a number in your robot\'s memory.',
                 'failure_message': 'Type power = 100 on a new line.'
             }),
-            'hints': json.dumps(["Variables use the = sign to store values."])
+            'hints': json.dumps([
+                "Variables use the = sign to store values.",
+                "The variable name goes on the left.",
+                "The number goes on the right: power = 100"
+            ])
         })
 
         get_or_create_mission(basics.id, "Give it a Name (Strings)", 4, {
-            'description': "Text in Python is called a String. Create a variable called 'name' and set it to 'Robo'.",
+            'description': "Tiny step: create a word box by adding name = \"Robo\".",
             'difficulty': "beginner",
             'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'pattern': r'name\s*=\s*[\'"][^\'"]+[\'"]',
+                'pattern': r'^name\s*=\s*[\'"][^\'"]+[\'"]\s*$',
                 'success_message': 'Awesome! Your robot now has a name stored as a string.',
                 'failure_message': 'Type name = "Robo" on a new line.'
             }),
-            'hints': json.dumps(["Always put quotes around text in Python!"])
+            'hints': json.dumps([
+                "Text is called a string.",
+                "Strings need quotes.",
+                "Try: name = \"Robo\""
+            ])
         })
 
         get_or_create_mission(basics.id, "Move your Robot (Math)", 5, {
-            'description': "You can change variables using math. Change the 'robot_y' position by subtracting 50 from it to move it UP!",
+            'description': "Tiny step: change robot_y = 400 to robot_y = 350 to move the robot up.",
             'difficulty': "beginner",
             'validation_type': "variable_changed",
             'validation_data': json.dumps({
@@ -1054,59 +1084,79 @@ def draw():
                 'success_message': 'Lift off! You used math to change the robot\'s position.',
                 'failure_message': 'Change robot_y = 400 to robot_y = 350.'
             }),
-            'hints': json.dumps(["In games, smaller Y numbers move things UP!"])
+            'hints': json.dumps([
+                "robot_y is near the top of the code.",
+                "In games, smaller Y numbers move things up.",
+                "Change 400 to 350."
+            ])
         })
 
         get_or_create_mission(basics.id, "Smart Robot (If Statements)", 6, {
-            'description': "The 'if' command lets your robot make decisions. Add a check: if power_level > 0: print('I am awake!')",
+            'description': "Tiny step: add an if statement with an indented print line under it.",
             'difficulty': "intermediate",
-            'validation_type': "code_contains",
+            'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'text': 'if ',
+                'pattern': r'if\s+power_level\s*>\s*0\s*:\s*\n\s+print\(',
                 'success_message': 'Brilliant! Your robot can now check conditions before acting.',
-                'failure_message': 'Add an if statement to your code.'
+                'failure_message': 'Add two lines: if power_level > 0: then an indented print line.'
             }),
-            'hints': json.dumps(["Don't forget the colon : at the end of the if line!"])
+            'hints': json.dumps([
+                "Don't forget the colon : at the end of the if line.",
+                "The print line under if needs four spaces before it.",
+                "Try: if power_level > 0: then print(\"I am awake!\") on the next line."
+            ])
         })
 
         get_or_create_mission(basics.id, "Backpack (Lists)", 7, {
-            'description': "Lists store many items together. Create a list called 'inventory' with ['wrench', 'battery', 'map'].",
+            'description': "Tiny step: create inventory = [\"wrench\", \"battery\", \"map\"].",
             'difficulty': "intermediate",
-            'validation_type': "code_contains",
+            'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'text': '[',
+                'pattern': r'^inventory\s*=\s*\[.+\]\s*$',
                 'success_message': 'Your robot is now carrying a backpack full of items!',
-                'failure_message': 'Use square brackets [] to create a list.'
+                'failure_message': 'Create an inventory list with square brackets, like inventory = ["wrench", "battery", "map"].'
             }),
-            'hints': json.dumps(["Separate items in a list with commas."])
+            'hints': json.dumps([
+                "Lists use square brackets.",
+                "Put quotes around each word.",
+                "Separate items with commas."
+            ])
         })
 
         get_or_create_mission(basics.id, "Repeating Tasks (Loops)", 8, {
-            'description': "Loops repeat code so you don't have to type it again and again. Use a 'for' loop to print 'Scanning...' 3 times.",
+            'description': "Tiny step: add a for loop that prints Scanning... three times.",
             'difficulty': "intermediate",
-            'validation_type': "code_contains",
+            'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'text': 'for ',
+                'pattern': r'for\s+\w+\s+in\s+range\s*\(\s*3\s*\)\s*:\s*\n\s+print\(',
                 'success_message': 'Look at it go! Loops are a programmer\'s best friend.',
-                'failure_message': 'Try: for i in range(3): print("Scanning...")'
+                'failure_message': 'Try two lines: for i in range(3): then an indented print("Scanning...").'
             }),
-            'hints': json.dumps(["The range(3) command tells the loop to run 3 times."])
+            'hints': json.dumps([
+                "range(3) means repeat 3 times.",
+                "The print line under the loop needs four spaces before it.",
+                "Try: for i in range(3):"
+            ])
         })
 
         get_or_create_mission(basics.id, "New Skills (Functions)", 9, {
-            'description': "Functions are groups of code with a name. Define a function: def wave(): print('Waving!')",
+            'description': "Tiny step: define wave(), put a print inside it, then call wave().",
             'difficulty': "intermediate",
-            'validation_type': "code_contains",
+            'validation_type': "code_pattern",
             'validation_data': json.dumps({
-                'text': 'def ',
+                'pattern': r'def\s+wave\s*\(\s*\)\s*:\s*\n\s+print\(',
                 'success_message': 'Excellent! You taught your robot a brand new skill.',
-                'failure_message': "Use 'def' to define a new function."
+                'failure_message': 'Define a function named wave with def wave(): and put an indented print line inside.'
             }),
-            'hints': json.dumps(["Functions start with 'def' followed by a name and ()."])
+            'hints': json.dumps([
+                "Functions start with def.",
+                "Use parentheses after the function name.",
+                "Indented code belongs inside the function."
+            ])
         })
 
         get_or_create_mission(basics.id, "Random Luck (Imports)", 10, {
-            'description': "Use the random module to set a random position. Type: robot_x = random.randint(100, 500)",
+            'description': "Tiny step: add robot_x = random.randint(100, 500), then run the code a few times.",
             'difficulty': "advanced",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
@@ -2795,10 +2845,12 @@ def draw():
         minecraft_template = '''# Minecraft 2D
 # Use WASD to move, arrow keys to place/break blocks
 # Arrow Up/Down/Left/Right aim the cursor, SPACE to place, E to break
-# Number keys 1-4 to select block type
+# C toggles Creative/Survival, B crafts bricks, T places a torch, S/L save/load
+# Number keys 1-8 select block type
 
-from js import clear_screen, draw_rect, draw_circle, draw_text, is_key_pressed
+from js import clear_screen, draw_rect, draw_circle, draw_text, is_key_pressed, localStorage
 import random
+import json
 
 # Game settings
 CANVAS_WIDTH = 600
@@ -2807,6 +2859,8 @@ BLOCK_SIZE = 25
 GRID_W = CANVAS_WIDTH // BLOCK_SIZE   # 24 columns
 GRID_H = CANVAS_HEIGHT // BLOCK_SIZE  # 28 rows
 GRAVITY_SPEED = 4  # Frames between gravity ticks
+DAY_LENGTH = 1800
+SURVIVAL_MODE = True
 
 # Block types: id -> (name, color, breakable)
 BLOCK_TYPES = {
@@ -2821,7 +2875,20 @@ BLOCK_TYPES = {
     8: ("Bedrock", "#333333", False),
     9: ("Coal", "#1a1a1a", True),
     10: ("Gold", "#FFD700", True),
+    11: ("Diamond", "#00E5FF", True),
+    12: ("Brick", "#B94A48", True),
+    13: ("Glass", "#BFEFFF", True),
+    14: ("Torch", "#FFB000", True),
+    15: ("TNT", "#E53935", True),
 }
+
+HOTBAR_BLOCKS = [1, 2, 3, 4, 6, 12, 14, 15]
+QUESTS = [
+    ("Mine 10 blocks", lambda: score >= 100),
+    ("Find gold or diamond", lambda: player.inventory.get(10, 0) + player.inventory.get(11, 0) > 0),
+    ("Place a torch", lambda: torches_placed > 0),
+    ("Craft bricks", lambda: player.inventory.get(12, 0) > 0),
+]
 
 class Player:
     def __init__(self):
@@ -2835,8 +2902,12 @@ class Player:
         self.head_color = "#FFDAB9"
         self.speed = 1
         self.health = 10
+        self.damage_cooldown = 0
         self.selected_block = 1  # Currently selected block type
-        self.inventory = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 9: 0, 10: 0}
+        self.inventory = {
+            1: 12, 2: 12, 3: 8, 4: 6, 5: 0, 6: 8,
+            9: 0, 10: 0, 11: 0, 12: 0, 13: 4, 14: 6, 15: 2
+        }
         # Cursor offset from player for placing/breaking
         self.cursor_dx = 1
         self.cursor_dy = 0
@@ -2898,10 +2969,34 @@ class World:
             for x in range(GRID_W):
                 if self.grid[y][x] == 3:
                     r = random.random()
-                    if r < 0.03:
+                    if r < 0.012 and y > GRID_H // 2:
+                        self.grid[y][x] = 11  # Diamond (very rare)
+                    elif r < 0.03:
                         self.grid[y][x] = 10  # Gold (rare)
                     elif r < 0.08:
                         self.grid[y][x] = 9   # Coal
+
+        # Carve simple caves underground so exploration feels alive
+        for _ in range(7):
+            cave_x = random.randint(2, GRID_W - 3)
+            cave_y = random.randint(GRID_H // 2, GRID_H - 6)
+            cave_radius = random.randint(2, 4)
+            for y in range(cave_y - cave_radius, cave_y + cave_radius + 1):
+                for x in range(cave_x - cave_radius, cave_x + cave_radius + 1):
+                    if 1 <= x < GRID_W - 1 and 2 <= y < GRID_H - 2:
+                        if abs(x - cave_x) + abs(y - cave_y) <= cave_radius + random.randint(0, 1):
+                            if self.grid[y][x] not in (8, 10, 11):
+                                self.grid[y][x] = 0
+
+        # Sprinkle tiny biome hints across the surface
+        for x in range(GRID_W):
+            surface = heights[x]
+            if x < GRID_W // 3 and self.grid[surface][x] == 1:
+                if random.random() < 0.35:
+                    self.grid[surface][x] = 6  # sandy desert patch
+            elif x > (GRID_W * 2) // 3 and surface - 1 >= 0:
+                if self.grid[surface][x] == 1 and random.random() < 0.25:
+                    self.grid[surface - 1][x] = 13  # icy/glass sparkle
 
         # Add a few trees on the surface
         for x in range(2, GRID_W - 2, random.randint(4, 7)):
@@ -2945,6 +3040,36 @@ class World:
         block = self.get_block(x, y)
         return block != 0 and block != 7  # Air and water are not solid
 
+    def to_data(self):
+        return self.grid
+
+    def load_data(self, data):
+        if isinstance(data, list) and len(data) == GRID_H:
+            self.grid = data
+
+class Mob:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.direction = random.choice([-1, 1])
+        self.step_timer = random.randint(0, 20)
+        self.color = "#7CFC00"
+
+    def update(self, world):
+        self.step_timer += 1
+        if self.step_timer % 18 != 0:
+            return
+
+        nx = self.x + self.direction
+        if nx <= 0 or nx >= GRID_W - 1 or world.is_solid(nx, self.y):
+            self.direction *= -1
+            return
+
+        if world.is_solid(nx, self.y + 1):
+            self.x = nx
+        else:
+            self.direction *= -1
+
 # Create world and player
 world = World()
 player = Player()
@@ -2954,6 +3079,14 @@ for y in range(GRID_H):
     if world.is_solid(player.x, y):
         player.y = y - 2  # Stand on top
         break
+
+def find_surface_y(x):
+    for y in range(GRID_H):
+        if world.is_solid(x, y):
+            return max(0, y - 1)
+    return GRID_H // 2
+
+mobs = [Mob(4, find_surface_y(4)), Mob(GRID_W - 5, find_surface_y(GRID_W - 5))]
 
 # Game state
 game_over = False
@@ -2965,16 +3098,66 @@ last_move_key = None
 message = ""
 message_timer = 0
 score = 0
+day_time = 0
+creative_mode = False
+torches_placed = 0
+quests_completed = set()
+last_toggle_frame = -100
 
 def show_message(msg, duration=90):
     global message, message_timer
     message = msg
     message_timer = duration
 
+def save_world():
+    data = {
+        "grid": world.to_data(),
+        "player": {"x": player.x, "y": player.y, "inventory": player.inventory},
+        "score": score,
+    }
+    localStorage.setItem("minecraft2d-save", json.dumps(data))
+    show_message("World saved!", 60)
+
+def load_world():
+    global score
+    saved = localStorage.getItem("minecraft2d-save")
+    if not saved:
+        show_message("No saved world yet", 60)
+        return
+    data = json.loads(str(saved))
+    world.load_data(data.get("grid", []))
+    player.x = data.get("player", {}).get("x", player.x)
+    player.y = data.get("player", {}).get("y", player.y)
+    for key, value in data.get("player", {}).get("inventory", {}).items():
+        player.inventory[int(key)] = value
+    score = data.get("score", score)
+    show_message("World loaded!", 60)
+
+def craft_bricks():
+    if player.inventory.get(2, 0) >= 2 and player.inventory.get(3, 0) >= 1:
+        player.inventory[2] -= 2
+        player.inventory[3] -= 1
+        player.inventory[12] = player.inventory.get(12, 0) + 4
+        show_message("Crafted 4 bricks!", 60)
+    else:
+        show_message("Need 2 dirt + 1 stone", 60)
+
+def explode(cx, cy, radius=2):
+    global score
+    for y in range(cy - radius, cy + radius + 1):
+        for x in range(cx - radius, cx + radius + 1):
+            if abs(x - cx) + abs(y - cy) <= radius:
+                block = world.get_block(x, y)
+                if block not in (0, 8):
+                    world.set_block(x, y, 0)
+                    score += 5
+    show_message("TNT blast!", 70)
+
 def update():
     """Update game logic"""
     global game_over, game_started, frame_count, gravity_timer
     global move_delay, last_move_key, message_timer, score
+    global day_time, creative_mode, torches_placed, last_toggle_frame
 
     frame_count += 1
 
@@ -2993,12 +3176,43 @@ def update():
                 if world.is_solid(player.x, y):
                     player.y = y - 2
                     break
+            mobs.clear()
+            mobs.extend([Mob(4, find_surface_y(4)), Mob(GRID_W - 5, find_surface_y(GRID_W - 5))])
             score = 0
             show_message("New world generated!", 60)
         return
 
     if message_timer > 0:
         message_timer -= 1
+
+    day_time = (day_time + 1) % DAY_LENGTH
+
+    if frame_count - last_toggle_frame > 15:
+        if is_key_pressed('c') or is_key_pressed('C'):
+            creative_mode = not creative_mode
+            last_toggle_frame = frame_count
+            show_message("Creative mode!" if creative_mode else "Survival mode!", 60)
+        elif is_key_pressed('b') or is_key_pressed('B'):
+            craft_bricks()
+            last_toggle_frame = frame_count
+        elif is_key_pressed('s') or is_key_pressed('S'):
+            save_world()
+            last_toggle_frame = frame_count
+        elif is_key_pressed('l') or is_key_pressed('L'):
+            load_world()
+            last_toggle_frame = frame_count
+        elif is_key_pressed('t') or is_key_pressed('T'):
+            player.selected_block = 14
+            last_toggle_frame = frame_count
+
+    for mob in mobs:
+        mob.update(world)
+        if player.damage_cooldown > 0:
+            player.damage_cooldown -= 1
+        if abs(mob.x - player.x) <= 1 and abs(mob.y - player.y) <= 1 and not creative_mode and player.damage_cooldown <= 0:
+            player.health -= 1
+            player.damage_cooldown = 45
+            show_message("Ouch! Back up from the slime", 35)
 
     # Movement with delay for responsiveness
     moved = False
@@ -3050,13 +3264,21 @@ def update():
 
     # Block selection with number keys
     if is_key_pressed('1'):
-        player.selected_block = 1
+        player.selected_block = HOTBAR_BLOCKS[0]
     elif is_key_pressed('2'):
-        player.selected_block = 2
+        player.selected_block = HOTBAR_BLOCKS[1]
     elif is_key_pressed('3'):
-        player.selected_block = 3
+        player.selected_block = HOTBAR_BLOCKS[2]
     elif is_key_pressed('4'):
-        player.selected_block = 4
+        player.selected_block = HOTBAR_BLOCKS[3]
+    elif is_key_pressed('5'):
+        player.selected_block = HOTBAR_BLOCKS[4]
+    elif is_key_pressed('6'):
+        player.selected_block = HOTBAR_BLOCKS[5]
+    elif is_key_pressed('7'):
+        player.selected_block = HOTBAR_BLOCKS[6]
+    elif is_key_pressed('8'):
+        player.selected_block = HOTBAR_BLOCKS[7]
 
     # Place block with SPACE - tries each cursor target in priority order
     if is_key_pressed(' ') and frame_count % 10 == 0:
@@ -3064,9 +3286,12 @@ def update():
             if 0 <= cx < GRID_W and 0 <= cy < GRID_H:
                 if world.get_block(cx, cy) == 0:
                     sel = player.selected_block
-                    if player.inventory.get(sel, 0) > 0:
+                    if creative_mode or player.inventory.get(sel, 0) > 0:
                         world.set_block(cx, cy, sel)
-                        player.inventory[sel] -= 1
+                        if not creative_mode:
+                            player.inventory[sel] -= 1
+                        if sel == 14:
+                            torches_placed += 1
                         show_message(f"Placed {BLOCK_TYPES[sel][0]}", 40)
                         break  # Only place one block per press
 
@@ -3078,10 +3303,12 @@ def update():
                     block = world.get_block(cx, cy)
                     if block > 0 and BLOCK_TYPES.get(block, (None, None, False))[2]:
                         world.set_block(cx, cy, 0)
-                        if block in player.inventory:
+                        if block == 15:
+                            explode(cx, cy)
+                        else:
                             player.inventory[block] = player.inventory.get(block, 0) + 1
-                        score += 10
-                        show_message(f"Mined {BLOCK_TYPES[block][0]}! +10", 40)
+                            score += 10
+                            show_message(f"Mined {BLOCK_TYPES[block][0]}! +10", 40)
                         break  # Only break one block per press
 
     # Gravity
@@ -3116,6 +3343,11 @@ def update():
     player.x = max(0, min(GRID_W - 1, player.x))
     player.y = max(0, min(GRID_H - 3, player.y))
 
+    for i, (quest_name, quest_check) in enumerate(QUESTS):
+        if i not in quests_completed and quest_check():
+            quests_completed.add(i)
+            show_message(f"Quest complete: {quest_name}", 90)
+
     # Check health
     if player.health <= 0:
         game_over = True
@@ -3131,12 +3363,26 @@ def draw():
         draw_text("WASD = Move / Jump", 180, 340, "#cccccc", "20px Arial")
         draw_text("Arrow Keys = Aim Cursor", 165, 370, "#cccccc", "20px Arial")
         draw_text("E = Mine Block  |  SPACE = Place Block", 105, 400, "#cccccc", "20px Arial")
-        draw_text("1-4 = Select Block Type", 170, 430, "#cccccc", "20px Arial")
+        draw_text("1-8 = Blocks  |  C = Creative  |  B = Craft", 95, 430, "#cccccc", "20px Arial")
+        draw_text("T = Torch  |  S/L = Save or Load World", 120, 460, "#cccccc", "20px Arial")
         draw_text("Press SPACE to Start", 175, 510, "#FFD700", "26px Arial")
         return
 
-    # Draw sky gradient (simplified)
-    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, "#87CEEB")
+    # Draw day/night sky
+    day_phase = day_time / DAY_LENGTH
+    if day_phase < 0.25:
+        sky_color = "#87CEEB"
+    elif day_phase < 0.5:
+        sky_color = "#5DADE2"
+    elif day_phase < 0.75:
+        sky_color = "#F5B041"
+    else:
+        sky_color = "#17202A"
+    draw_rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, sky_color)
+    if day_phase >= 0.75:
+        draw_circle(510, 80, 28, "#F8F9F9")
+    else:
+        draw_circle(520, 70, 28, "#F9E79F")
 
     # Draw blocks
     for y in range(GRID_H):
@@ -3146,10 +3392,14 @@ def draw():
                 color = BLOCK_TYPES.get(block, ("?", "#ff00ff", False))[1]
                 bx = x * BLOCK_SIZE
                 by = y * BLOCK_SIZE
+                if block == 14:
+                    draw_circle(bx + BLOCK_SIZE // 2, by + BLOCK_SIZE // 2, 45, "#FFD54F44")
                 draw_rect(bx, by, BLOCK_SIZE, BLOCK_SIZE, color)
                 # Block border for depth
                 draw_rect(bx, by, BLOCK_SIZE, 1, "#00000033")
                 draw_rect(bx, by, 1, BLOCK_SIZE, "#00000033")
+                if block == 15:
+                    draw_text("T", bx + 7, by + 18, "#ffffff", "16px Arial")
 
     # Draw cursor highlight on all target blocks
     for cx, cy in player.get_cursor_targets():
@@ -3171,14 +3421,23 @@ def draw():
     draw_rect(px + 7, py + 8, 3, 3, "#333333")
     draw_rect(px + 15, py + 8, 3, 3, "#333333")
 
+    # Draw wandering slimes
+    for mob in mobs:
+        mx = mob.x * BLOCK_SIZE
+        my = mob.y * BLOCK_SIZE
+        draw_rect(mx + 3, my + 7, BLOCK_SIZE - 6, BLOCK_SIZE - 7, mob.color)
+        draw_rect(mx + 7, my + 12, 3, 3, "#102A12")
+        draw_rect(mx + 15, my + 12, 3, 3, "#102A12")
+
     # Draw HUD background
-    draw_rect(0, 0, CANVAS_WIDTH, 36, "#00000088")
+    draw_rect(0, 0, CANVAS_WIDTH, 60, "#00000088")
 
     # Draw score
     draw_text(f"Score: {score}", 10, 26, "#ffffff", "18px Arial")
 
     # Draw health
     draw_text(f"HP: {player.health}", 130, 26, "#ff6666", "18px Arial")
+    draw_text("Creative" if creative_mode else "Survival", 130, 52, "#bbf7d0" if creative_mode else "#ffffff", "15px Arial")
 
     # Draw selected block indicator
     sel = player.selected_block
@@ -3188,18 +3447,26 @@ def draw():
     draw_text(f"{sel_name}", 265, 26, "#ffffff", "16px Arial")
 
     # Draw inventory hotbar
-    hotbar_x = 380
-    hotbar_blocks = [1, 2, 3, 4]
+    hotbar_x = 300
+    hotbar_blocks = HOTBAR_BLOCKS
     for i, bid in enumerate(hotbar_blocks):
-        bx = hotbar_x + i * 30
+        bx = hotbar_x + i * 36
         bcolor = BLOCK_TYPES.get(bid, ("?", "#fff", False))[1]
         # Highlight selected
         if bid == player.selected_block:
             draw_rect(bx - 2, 5, 28, 28, "#FFD700")
         draw_rect(bx, 7, 24, 24, bcolor)
-        count = player.inventory.get(bid, 0)
+        count = "∞" if creative_mode else player.inventory.get(bid, 0)
         draw_text(str(count), bx + 6, 26, "#ffffff", "12px Arial")
         draw_text(str(i + 1), bx + 8, 6, "#FFD700", "10px Arial")
+
+    # Draw quest tracker
+    quest_y = 88
+    draw_rect(8, 68, 250, 102, "#00000055")
+    draw_text("Quests", 18, quest_y, "#FFD700", "16px Arial")
+    for i, (quest_name, quest_check) in enumerate(QUESTS):
+        marker = "✓" if i in quests_completed else "□"
+        draw_text(f"{marker} {quest_name}", 18, quest_y + 20 + i * 18, "#ffffff", "14px Arial")
 
     # Draw message
     if message_timer > 0 and message:
@@ -3212,17 +3479,14 @@ def draw():
         draw_text(f"Final Score: {score}", 210, CANVAS_HEIGHT // 2 + 30, "#ffffff", "22px Arial")
         draw_text("Press SPACE to restart", 185, CANVAS_HEIGHT // 2 + 60, "#aaaaaa", "18px Arial")
 
-# TODO: Add crafting system to combine blocks
-# TODO: Add day/night cycle with changing sky colors
-# TODO: Add more block types like bricks or glass
-# TODO: Make mobs that walk around the world
-# TODO: Add a hunger system
+# Build ideas: add weather, friendly villagers, bigger caves, or a hunger system.
+# Challenge: create a new quest by adding it to the QUESTS list.
 '''
 
         minecraft = get_or_create_game(
             name='minecraft',
             display_name='Mission 7: Minecraft 2D',
-            description='Mine blocks, build structures, and explore a procedural world!',
+            description='Mine, build, craft, survive slimes, finish quests, and save your world!',
             template_code=minecraft_template
         )
 
@@ -3267,18 +3531,18 @@ def draw():
 
         # Minecraft Mission 3: Add a new block type
         get_or_create_mission(minecraft.id, "Add a New Block Type", 3, {
-            'description': "Add a new block to the BLOCK_TYPES dictionary! Add something like `11: (\"Diamond\", \"#00FFFF\", True),` after the Gold entry around line 29.",
+            'description': "Add your own block to the BLOCK_TYPES dictionary! Add something like `16: (\"Crystal\", \"#D946EF\", True),` after the TNT entry.",
             'difficulty': "intermediate",
             'validation_type': "code_contains",
             'validation_data': json.dumps({
-                'text': '11:',
+                'text': '16:',
                 'success_message': 'A brand new block type! You\'re expanding the world.',
-                'failure_message': 'Add a new entry like 11: ("Diamond", "#00FFFF", True) to BLOCK_TYPES.'
+                'failure_message': 'Add a new entry like 16: ("Crystal", "#D946EF", True) to BLOCK_TYPES.'
             }),
             'hints': json.dumps([
                 "BLOCK_TYPES is a dictionary near the top of the file",
                 "Each entry has: id: (name, color, breakable)",
-                "Add 11: (\"Diamond\", \"#00FFFF\", True), after the Gold line",
+                "Add 16: (\"Crystal\", \"#D946EF\", True), after the TNT line",
                 "You can pick any name and color you want!"
             ])
         })
