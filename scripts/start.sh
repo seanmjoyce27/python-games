@@ -25,21 +25,38 @@ else
     PY=python3
 fi
 
-# If the DB already has tables from a pre-Alembic install but no alembic_version
-# row, stamp it to head so the initial migration doesn't try to recreate tables.
-$PY - <<'PY'
+# Reconcile Alembic state with the actual database before upgrading.
+# Three cases this handles:
+#   1. Fresh DB (no tables)               → let `flask db upgrade` create everything
+#   2. Pre-Alembic DB (tables, no version) → stamp head so upgrade is a no-op
+#   3. Schema drift (migration would fail) → skip upgrade; init_db() self-heals
+$PY - <<'PY' || true
 from app import app, db
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 with app.app_context():
     insp = inspect(db.engine)
     tables = set(insp.get_table_names())
-    if 'game' in tables and 'alembic_version' not in tables:
-        print("📌 Existing pre-Alembic database detected — stamping current head...")
+    if 'game' not in tables:
+        # Fresh install — nothing to stamp. flask db upgrade will create tables.
+        raise SystemExit(0)
+
+    stamped = False
+    if 'alembic_version' in tables:
+        row = db.session.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).fetchone()
+        stamped = row is not None
+
+    if not stamped:
+        print("📌 Existing database without migration tracking — stamping current head...")
         from flask_migrate import stamp
         stamp(revision='head')
 PY
 
-$PY -m flask db upgrade
+# Run pending migrations. If this fails (e.g. schema drift on a legacy DB),
+# don't abort startup — init_db()'s self-healing ALTER TABLEs will patch things up.
+if ! $PY -m flask db upgrade 2>/tmp/migrate.err; then
+    echo "⚠️  Migration step reported an error; relying on init_db() self-healing."
+    echo "    (Details in /tmp/migrate.err — usually safe to ignore on legacy databases.)"
+fi
 
 # Start the application
 if [ "$1" = "--production" ] || [ "$FLASK_ENV" = "production" ]; then

@@ -251,6 +251,16 @@ def game_page(game_id):
     users = User.query.all()
     return render_template('game.html', game=game, users=users)
 
+@app.route('/sandbox')
+def sandbox_page():
+    """Free-code sandbox unlocked after all missions are done."""
+    return render_template('sandbox.html')
+
+@app.route('/git-tutorial')
+def git_tutorial_page():
+    """Simulated git terminal tutorial."""
+    return render_template('git_tutorial.html')
+
 @app.route('/healthz')
 def health_check():
     """Simple health check for deployment"""

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Code Sandbox - Python Game Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        .sandbox-canvas {
+            background: #0f172a;
+            border-radius: 8px;
+            display: block;
+            max-width: 100%;
+        }
+        .sandbox-output {
+            background: #111827;
+            color: #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-top: 10px;
+            min-height: 60px;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .sandbox-output .ok { color: #34d399; }
+        .sandbox-output .err { color: #fca5a5; }
+        .sandbox-output .info { color: #93c5fd; }
+        .examples-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .examples-bar select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <a href="/" class="back-btn">← Back</a>
+            <h1>🧪 Free Code Sandbox</h1>
+            <div class="header-actions">
+                <span id="saveStatus" style="color:#94a3b8; font-size: 0.875rem;"></span>
+                <div class="examples-bar">
+                    <label for="examplePicker" style="font-size:0.875rem;color:#475569;">Examples:</label>
+                    <select id="examplePicker">
+                        <option value="">— pick one —</option>
+                        <option value="hello">Hello, World</option>
+                        <option value="rectangles">Draw Some Rectangles</option>
+                        <option value="bouncing">Bouncing Ball</option>
+                        <option value="keyboard">Keyboard Movement</option>
+                        <option value="stars">Random Stars</option>
+                    </select>
+                </div>
+                <button id="clearBtn" class="btn-secondary">🗑 Clear</button>
+            </div>
+        </header>
+
+        <div class="workspace">
+            <div class="editor-panel">
+                <div class="panel-header">
+                    <h3>Your Code</h3>
+                    <div class="game-controls">
+                        <button id="runBtn" class="btn-run">▶ Run Code</button>
+                        <button id="stopBtn" class="btn-stop" style="display:none;">⏹ Stop</button>
+                    </div>
+                </div>
+                <textarea id="codeEditor"># 🧪 Free Code Sandbox
+# Write any Python program you like!
+#
+# You can use the same helpers from the missions:
+#   from js import clear_screen, draw_rect, draw_circle, draw_text
+#   from js import is_key_pressed
+#
+# Define update() and draw() for an animated loop,
+# or just write a script with print() statements.
+
+print("Hello from the Sandbox!")
+print("Pick an example from the dropdown above to get started.")
+</textarea>
+            </div>
+
+            <div class="game-panel">
+                <div class="panel-header">
+                    <h3>Canvas</h3>
+                </div>
+                <div id="gameCanvas">
+                    <canvas id="canvas" class="sandbox-canvas" width="600" height="600"></canvas>
+                    <div id="output" class="sandbox-output"><span class="info">⏳ Loading Python environment…</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <script>
+        const userId = new URLSearchParams(window.location.search).get('user_id') || 'anon';
+        const STORAGE_KEY = `sandbox:${userId}`;
+        let pyodide = null;
+        let editor = null;
+        let requestID = null;
+
+        const EXAMPLES = {
+            hello: `print("Hello, World!")\nprint("Try changing this text and click Run again.")\n`,
+            rectangles: `from js import clear_screen, draw_rect, draw_text\n\nclear_screen()\ndraw_rect(50, 50, 200, 120, "#f97316")\ndraw_rect(280, 50, 200, 120, "#22c55e")\ndraw_rect(165, 220, 200, 120, "#3b82f6")\ndraw_text("Hello, Sandbox!", 150, 420, "#ffffff", "32px Arial")\n`,
+            bouncing: `from js import clear_screen, draw_circle\n\nx = 100\ny = 100\ndx = 4\ndy = 3\n\ndef update():\n    global x, y, dx, dy\n    x += dx\n    y += dy\n    if x < 20 or x > 580:\n        dx = -dx\n    if y < 20 or y > 580:\n        dy = -dy\n\ndef draw():\n    clear_screen()\n    draw_circle(x, y, 20, "#f59e0b")\n`,
+            keyboard: `from js import clear_screen, draw_rect, is_key_pressed\n\nx = 280\ny = 280\nspeed = 5\n\ndef update():\n    global x, y\n    if is_key_pressed("ArrowLeft"):  x -= speed\n    if is_key_pressed("ArrowRight"): x += speed\n    if is_key_pressed("ArrowUp"):    y -= speed\n    if is_key_pressed("ArrowDown"):  y += speed\n\ndef draw():\n    clear_screen()\n    draw_rect(x, y, 40, 40, "#22d3ee")\n`,
+            stars: `import random\nfrom js import clear_screen, draw_circle\n\nclear_screen()\nfor _ in range(80):\n    sx = random.randint(0, 600)\n    sy = random.randint(0, 600)\n    size = random.randint(1, 4)\n    draw_circle(sx, sy, size, "#fbbf24")\n`
+        };
+
+        function setStatus(msg, kind = 'info') {
+            const el = document.getElementById('saveStatus');
+            el.textContent = msg;
+            el.style.color = kind === 'err' ? '#ef4444' : (kind === 'ok' ? '#16a34a' : '#94a3b8');
+        }
+
+        function appendOutput(text, kind = '') {
+            const out = document.getElementById('output');
+            const span = document.createElement('span');
+            if (kind) span.className = kind;
+            span.textContent = text;
+            out.appendChild(span);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function resetOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        function setupCanvasHelpers() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            window.keysPressed = window.keysPressed || {};
+            window.lastKeyPressed = window.lastKeyPressed || '';
+
+            window.clear_screen = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
+            window.draw_rect = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
+            window.draw_circle = (x, y, r, color) => { ctx.beginPath(); ctx.arc(x, y, r, 0, 2*Math.PI); ctx.fillStyle = color; ctx.fill(); };
+            window.draw_text = (text, x, y, color, font) => { ctx.fillStyle = color; ctx.font = font || '20px Arial'; ctx.fillText(text, x, y); };
+            window.is_key_pressed = (k) => window.keysPressed[k] === true;
+            window.get_last_key = () => window.lastKeyPressed;
+        }
+
+        function installKeyboardListeners() {
+            if (window._sandboxKeysInstalled) return;
+            window._sandboxKeysInstalled = true;
+            window.addEventListener('keydown', (e) => {
+                const inEditor = document.activeElement.closest('.CodeMirror');
+                if (inEditor) return;
+                window.keysPressed[e.key] = true;
+                window.lastKeyPressed = e.key;
+                if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+            });
+            window.addEventListener('keyup', (e) => {
+                const inEditor = document.activeElement.closest('.CodeMirror');
+                if (inEditor) return;
+                window.keysPressed[e.key] = false;
+            });
+        }
+
+        function stopLoop() {
+            if (requestID) { cancelAnimationFrame(requestID); requestID = null; }
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('runBtn').style.display = 'inline-block';
+        }
+
+        async function runCode() {
+            if (!pyodide) { alert('Python is still loading. Please wait…'); return; }
+
+            stopLoop();
+            resetOutput();
+            setupCanvasHelpers();
+            installKeyboardListeners();
+            window.clear_screen();
+
+            const code = editor.getValue();
+            try {
+                pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+`);
+                pyodide.runPython(code);
+
+                const stdout = pyodide.runPython('sys.stdout.getvalue()');
+                if (stdout) appendOutput(stdout);
+
+                const hasUpdate = pyodide.runPython("'update' in globals()");
+                const hasDraw = pyodide.runPython("'draw' in globals()");
+
+                if (hasUpdate || hasDraw) {
+                    document.getElementById('runBtn').style.display = 'none';
+                    document.getElementById('stopBtn').style.display = 'inline-block';
+                    const tick = () => {
+                        try {
+                            if (hasUpdate) pyodide.runPython('update()');
+                            if (hasDraw) pyodide.runPython('draw()');
+                            requestID = requestAnimationFrame(tick);
+                        } catch (err) {
+                            appendOutput('\nRuntime error: ' + err.message, 'err');
+                            stopLoop();
+                        }
+                    };
+                    tick();
+                } else if (!stdout) {
+                    appendOutput('✓ Code ran. (No output, and no update()/draw() defined.)', 'ok');
+                }
+            } catch (err) {
+                appendOutput('Error: ' + err.message, 'err');
+            }
+        }
+
+        function saveToLocal() {
+            try {
+                localStorage.setItem(STORAGE_KEY, editor.getValue());
+                setStatus('Saved locally ✓', 'ok');
+                clearTimeout(window._saveFade);
+                window._saveFade = setTimeout(() => setStatus(''), 1500);
+            } catch (_) { /* quota / private mode — ignore */ }
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) editor.setValue(saved);
+        }
+
+        async function init() {
+            editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                lineWrapping: false
+            });
+
+            loadFromLocal();
+
+            let saveTimer = null;
+            editor.on('change', () => {
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(saveToLocal, 500);
+            });
+
+            document.getElementById('runBtn').addEventListener('click', runCode);
+            document.getElementById('stopBtn').addEventListener('click', stopLoop);
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                if (confirm('Clear your sandbox code? (Cannot be undone.)')) {
+                    editor.setValue('');
+                    saveToLocal();
+                }
+            });
+            document.getElementById('examplePicker').addEventListener('change', (e) => {
+                const key = e.target.value;
+                if (!key) return;
+                if (editor.getValue().trim() && !confirm('Replace current code with the example?')) {
+                    e.target.value = '';
+                    return;
+                }
+                editor.setValue(EXAMPLES[key]);
+                e.target.value = '';
+            });
+
+            try {
+                pyodide = await loadPyodide();
+                resetOutput();
+                appendOutput('✓ Python ready. Click ▶ Run Code.', 'ok');
+            } catch (err) {
+                resetOutput();
+                appendOutput('Failed to load Python: ' + err.message, 'err');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

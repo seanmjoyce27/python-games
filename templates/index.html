@@ -67,19 +67,33 @@
                 document.getElementById('gamesSection').style.display = 'block';
                 
                 let prevCompleted = true; // First game is always unlocked
-                
-                container.innerHTML = games.map((game, index) => {
+                const allCompleted = games.length > 0 && games.every(g => g.is_completed);
+
+                const bonuses = [
+                    {
+                        href: `/git-tutorial?user_id=${userId}`,
+                        icon: '📚',
+                        display_name: 'Bonus: Git Tutorial',
+                        description: 'Learn version control in a simulated terminal — init, commit, branch, merge.',
+                        footer: 'Interactive lessons'
+                    },
+                    {
+                        href: `/sandbox?user_id=${userId}`,
+                        icon: '🧪',
+                        display_name: 'Bonus: Free Code Sandbox',
+                        description: 'A blank canvas to build anything you want with Python.',
+                        footer: 'Free play'
+                    }
+                ];
+
+                const gameHtml = games.map((game) => {
                     const isLocked = !prevCompleted;
                     const isCurrent = prevCompleted && !game.is_completed;
-                    const status = game.is_completed ? '✅ Completed' : (isLocked ? '🔒 Locked' : '🚀 In Progress');
                     const icon = game.is_completed ? '⭐' : (isLocked ? '🔒' : '🎮');
-                    
-                    // Update prevCompleted for next iteration
                     prevCompleted = game.is_completed;
-                    
                     return `
                         <div class="path-node">
-                            <a href="${isLocked ? '#' : `/game/${game.id}?user_id=${userId}`}" 
+                            <a href="${isLocked ? '#' : `/game/${game.id}?user_id=${userId}`}"
                                class="path-card ${isLocked ? 'locked' : ''} ${isCurrent ? 'current' : ''}">
                                 <div class="node-icon">${icon}</div>
                                 <div class="node-info">
@@ -94,6 +108,29 @@
                         </div>
                     `;
                 }).join('');
+
+                const bonusHtml = bonuses.map(b => {
+                    const isLocked = !allCompleted;
+                    const icon = isLocked ? '🔒' : b.icon;
+                    return `
+                        <div class="path-node">
+                            <a href="${isLocked ? '#' : b.href}"
+                               class="path-card ${isLocked ? 'locked' : 'current'}">
+                                <div class="node-icon">${icon}</div>
+                                <div class="node-info">
+                                    <h3>${b.display_name}</h3>
+                                    <p>${b.description}</p>
+                                    <div class="info" style="padding: 5px 0; text-align: left;">
+                                        ${isLocked ? '🔒 Finish every mission to unlock' : '🎉 ' + b.footer}
+                                    </div>
+                                </div>
+                                <div class="node-status">${isLocked ? '' : '👉'}</div>
+                            </a>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = gameHtml + bonusHtml;
 
             } catch (error) {
                 console.error('Error loading games path:', error);

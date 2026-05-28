@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Tutorial - Python Game Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .git-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            padding: 0 20px 20px;
+        }
+        .lesson-panel {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+        }
+        .lesson-panel h2 { margin: 0 0 8px; font-size: 1.1rem; color: #1f2937; }
+        .lesson-step {
+            font-size: 0.875rem;
+            color: #4b5563;
+            margin-bottom: 12px;
+        }
+        .lesson-goal {
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #064e3b;
+            margin-bottom: 12px;
+        }
+        .lesson-hints {
+            background: #fff7ed;
+            border-left: 4px solid #f59e0b;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            color: #78350f;
+            margin-bottom: 12px;
+        }
+        .lesson-hints code { background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; }
+        .lesson-list {
+            list-style: none;
+            padding: 0;
+            margin: 12px 0 0;
+        }
+        .lesson-list li {
+            padding: 8px 10px;
+            margin: 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #374151;
+            border: 1px solid transparent;
+        }
+        .lesson-list li:hover { background: #f3f4f6; }
+        .lesson-list li.active {
+            background: #eef2ff;
+            border-color: #6366f1;
+            color: #312e81;
+            font-weight: 600;
+        }
+        .lesson-list li .check { color: #16a34a; margin-left: 6px; }
+        .work-area { display: flex; flex-direction: column; gap: 12px; }
+        .files-row {
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+        }
+        .files-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .files-tabs button {
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: ui-monospace, monospace;
+            font-size: 0.8125rem;
+            color: #1f2937;
+        }
+        .files-tabs button.active { background: #1f2937; color: white; border-color: #1f2937; }
+        .files-tabs button.new-file { background: #ecfdf5; color: #047857; border-color: #6ee7b7; }
+        .file-editor {
+            width: 100%;
+            min-height: 130px;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .file-hint {
+            margin-top: 6px;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        .term-row {
+            background: #0b1220;
+            border-radius: 10px;
+            padding: 14px;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        .term-history {
+            flex: 1;
+            color: #e5e7eb;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 380px;
+            line-height: 1.5;
+        }
+        .term-history .cmd { color: #93c5fd; }
+        .term-history .out { color: #e5e7eb; }
+        .term-history .err { color: #fca5a5; }
+        .term-history .ok { color: #6ee7b7; }
+        .term-history .dim { color: #94a3b8; }
+        .term-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            border-top: 1px solid #1f2937;
+            padding-top: 10px;
+        }
+        .term-prompt { color: #6ee7b7; font-family: ui-monospace, monospace; }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e5e7eb;
+            font-family: ui-monospace, monospace;
+            font-size: 14px;
+            outline: none;
+        }
+        .graph-row {
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            font-family: ui-monospace, monospace;
+            font-size: 0.8125rem;
+            white-space: pre;
+            color: #111827;
+            overflow-x: auto;
+        }
+        .check-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .check-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .feedback {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            display: none;
+        }
+        .feedback.ok { background: #ecfdf5; color: #065f46; display: block; }
+        .feedback.err { background: #fef2f2; color: #991b1b; display: block; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <a href="/" class="back-btn">← Back</a>
+            <h1>📚 Git Tutorial</h1>
+            <div class="header-actions">
+                <button id="resetRepoBtn" class="btn-secondary" title="Reset the simulated repository">🔄 Reset Repo</button>
+            </div>
+        </header>
+
+        <div class="git-layout">
+            <div class="lesson-panel">
+                <h2 id="lessonTitle">Loading…</h2>
+                <div class="lesson-step" id="lessonInstructions"></div>
+                <div class="lesson-goal" id="lessonGoal"></div>
+                <div class="lesson-hints" id="lessonHints"></div>
+                <button id="checkBtn" class="check-btn">✓ Check Lesson</button>
+                <div class="feedback" id="feedback"></div>
+                <ul class="lesson-list" id="lessonList"></ul>
+            </div>
+
+            <div class="work-area">
+                <div class="files-row">
+                    <div class="files-tabs" id="filesTabs"></div>
+                    <textarea id="fileEditor" class="file-editor" placeholder="Pick a file or create one to edit its contents."></textarea>
+                    <div class="file-hint">Edit, then click <strong>Save File</strong> to write it to the working directory. (Files only — git commands go in the terminal below.)</div>
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button id="saveFileBtn" class="btn-primary">💾 Save File</button>
+                        <button id="deleteFileBtn" class="btn-secondary">🗑 Delete File</button>
+                    </div>
+                </div>
+
+                <div class="term-row">
+                    <div class="term-history" id="termHistory"></div>
+                    <div class="term-input-row">
+                        <span class="term-prompt" id="termPrompt">$</span>
+                        <input id="termInput" class="term-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type a git command and press Enter…">
+                    </div>
+                </div>
+
+                <div class="graph-row" id="graphRow">Run <code>git init</code> to start.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================================
+    // Simulated repo engine
+    // ============================================================
+    const repo = newRepo();
+
+    function newRepo() {
+        return {
+            initialized: false,
+            workingDir: {},         // filename -> content
+            staging: {},            // filename -> content snapshot at time of add
+            commits: [],            // { id, parents[], tree (file→content), message, branch }
+            branches: {},           // name -> commitId
+            head: { type: 'unborn', ref: 'main' }, // 'unborn' | 'branch' | 'detached'
+            nextId: 1,
+        };
+    }
+
+    function resetRepo() {
+        const r = newRepo();
+        Object.assign(repo, r);
+    }
+
+    function shortId(n) {
+        return ('000000' + n.toString(16)).slice(-7);
+    }
+
+    function commitById(id) { return repo.commits.find(c => c.id === id); }
+
+    function headCommit() {
+        if (repo.head.type === 'branch') return commitById(repo.branches[repo.head.ref]);
+        if (repo.head.type === 'detached') return commitById(repo.head.ref);
+        return null;
+    }
+
+    function headBranchName() {
+        return repo.head.type === 'branch' ? repo.head.ref : null;
+    }
+
+    function treeEqualsStaging(tree, staging) {
+        const a = Object.keys(tree).sort();
+        const b = Object.keys(staging).sort();
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+            if (tree[a[i]] !== staging[b[i]]) return false;
+        }
+        return true;
+    }
+
+    // ============================================================
+    // Command parser & runners
+    // ============================================================
+    function parseArgs(line) {
+        // Handles single + double quoted args.
+        const out = [];
+        let cur = '', q = null;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (q) {
+                if (c === q) { q = null; continue; }
+                cur += c;
+            } else if (c === '"' || c === "'") {
+                q = c;
+            } else if (/\s/.test(c)) {
+                if (cur) { out.push(cur); cur = ''; }
+            } else {
+                cur += c;
+            }
+        }
+        if (cur) out.push(cur);
+        return out;
+    }
+
+    function runLine(line) {
+        const tokens = parseArgs(line.trim());
+        if (tokens.length === 0) return { out: '' };
+        if (tokens[0] === 'clear') { document.getElementById('termHistory').innerHTML = ''; return { out: '' }; }
+        if (tokens[0] === 'help') return { out: helpText() };
+        if (tokens[0] !== 'git') {
+            return { err: `Only 'git', 'help', and 'clear' are supported here. Try: git status` };
+        }
+        const sub = tokens[1];
+        const args = tokens.slice(2);
+        switch (sub) {
+            case 'init':     return gitInit(args);
+            case 'status':   return gitStatus(args);
+            case 'add':      return gitAdd(args);
+            case 'commit':   return gitCommit(args);
+            case 'log':      return gitLog(args);
+            case 'branch':   return gitBranch(args);
+            case 'checkout': return gitCheckout(args);
+            case 'merge':    return gitMerge(args);
+            default: return { err: `Unknown git subcommand: ${sub}. Try: git help` };
+        }
+    }
+
+    function helpText() {
+        return [
+            'Available commands:',
+            '  git init                       Create a new repository',
+            '  git status                     Show working dir + staging status',
+            '  git add <file> | git add .     Stage changes',
+            '  git commit -m "message"        Record a snapshot',
+            '  git log                        Show commit history',
+            '  git branch                     List branches',
+            '  git branch <name>              Create a branch',
+            '  git checkout <name>            Switch branches',
+            '  git checkout -b <name>         Create + switch',
+            '  git merge <branch>             Merge another branch into current',
+            '  clear                          Clear the terminal',
+        ].join('\n');
+    }
+
+    function gitInit() {
+        if (repo.initialized) return { err: 'Already a git repository.' };
+        repo.initialized = true;
+        repo.branches = {};
+        repo.head = { type: 'unborn', ref: 'main' };
+        return { ok: "Initialized empty Git repository. Branch 'main' will be created on first commit." };
+    }
+
+    function ensureInit() {
+        if (!repo.initialized) return { err: 'Not a git repository. Run: git init' };
+        return null;
+    }
+
+    function gitStatus() {
+        const err = ensureInit(); if (err) return err;
+        const lines = [];
+        const branch = headBranchName();
+        if (repo.head.type === 'unborn') lines.push(`On branch ${repo.head.ref} (no commits yet)`);
+        else if (branch) lines.push(`On branch ${branch}`);
+        else lines.push(`HEAD detached at ${shortId(repo.head.ref)}`);
+
+        const head = headCommit();
+        const tree = head ? head.tree : {};
+
+        const staged = [];
+        const unstaged = [];
+        const untracked = [];
+
+        const all = new Set([...Object.keys(repo.workingDir), ...Object.keys(repo.staging), ...Object.keys(tree)]);
+        for (const f of all) {
+            const wd = repo.workingDir[f];
+            const st = repo.staging[f];
+            const tr = tree[f];
+            if (st !== undefined && st !== tr) staged.push(`${tr === undefined ? 'new file' : 'modified'}: ${f}`);
+            if (wd !== undefined && wd !== (st !== undefined ? st : tr)) {
+                if (st === undefined && tr === undefined) untracked.push(f);
+                else unstaged.push(`modified: ${f}`);
+            }
+            if (wd === undefined && tr !== undefined && st !== false) {
+                // Deleted in working dir, still tracked. We don't model deletions in detail.
+            }
+        }
+
+        if (staged.length) lines.push('Changes to be committed:\n  ' + staged.join('\n  '));
+        if (unstaged.length) lines.push('Changes not staged for commit:\n  ' + unstaged.join('\n  '));
+        if (untracked.length) lines.push('Untracked files:\n  ' + untracked.join('\n  '));
+        if (!staged.length && !unstaged.length && !untracked.length) lines.push('Nothing to commit, working tree clean.');
+        return { out: lines.join('\n') };
+    }
+
+    function gitAdd(args) {
+        const err = ensureInit(); if (err) return err;
+        if (args.length === 0) return { err: 'Nothing specified. Try: git add <file>  or  git add .' };
+        const files = args[0] === '.' ? Object.keys(repo.workingDir) : args;
+        if (files.length === 0) return { err: 'No files to add — working directory is empty.' };
+        for (const f of files) {
+            if (!(f in repo.workingDir)) return { err: `pathspec '${f}' did not match any files` };
+            repo.staging[f] = repo.workingDir[f];
+        }
+        return { ok: `Staged: ${files.join(', ')}` };
+    }
+
+    function gitCommit(args) {
+        const err = ensureInit(); if (err) return err;
+        // Expect: -m "message"
+        let message = null;
+        for (let i = 0; i < args.length; i++) {
+            if (args[i] === '-m') { message = args[i+1]; break; }
+        }
+        if (!message) return { err: 'Commit message required. Try: git commit -m "your message"' };
+
+        const head = headCommit();
+        const parentTree = head ? head.tree : {};
+
+        // Build new tree from parent tree + staging
+        const newTree = { ...parentTree, ...repo.staging };
+
+        if (head && treeEqualsStaging(parentTree, newTree)) {
+            return { err: 'Nothing to commit (no staged changes).' };
+        }
+        if (!head && Object.keys(repo.staging).length === 0) {
+            return { err: 'Nothing to commit. Stage files with: git add <file>' };
+        }
+
+        const id = repo.nextId++;
+        const parents = head ? [head.id] : [];
+        const branchName = headBranchName() || repo.head.ref || 'main';
+        repo.commits.push({ id, parents, tree: newTree, message, branch: branchName });
+        if (repo.head.type === 'unborn') {
+            repo.branches[branchName] = id;
+            repo.head = { type: 'branch', ref: branchName };
+        } else if (repo.head.type === 'branch') {
+            repo.branches[repo.head.ref] = id;
+        } else {
+            repo.head = { type: 'detached', ref: id };
+        }
+        // Reset staging snapshot to the new tree
+        repo.staging = { ...newTree };
+        return { ok: `[${branchName} ${shortId(id)}] ${message}` };
+    }
+
+    function gitLog() {
+        const err = ensureInit(); if (err) return err;
+        const head = headCommit();
+        if (!head) return { out: 'No commits yet.' };
+        const visited = new Set();
+        const order = [];
+        function walk(c) {
+            if (!c || visited.has(c.id)) return;
+            visited.add(c.id);
+            order.push(c);
+            for (const pid of c.parents) walk(commitById(pid));
+        }
+        walk(head);
+        return { out: order.map(c => `commit ${shortId(c.id)} (${c.branch})\n  ${c.message}`).join('\n\n') };
+    }
+
+    function gitBranch(args) {
+        const err = ensureInit(); if (err) return err;
+        if (args.length === 0) {
+            const names = Object.keys(repo.branches).sort();
+            if (names.length === 0) return { out: '(no branches yet — make a commit first)' };
+            const current = headBranchName();
+            return { out: names.map(n => (n === current ? '* ' : '  ') + n).join('\n') };
+        }
+        const name = args[0];
+        if (repo.head.type === 'unborn') return { err: 'No commits yet — make one before branching.' };
+        if (repo.branches[name] !== undefined) return { err: `Branch '${name}' already exists.` };
+        repo.branches[name] = headCommit().id;
+        return { ok: `Created branch ${name}` };
+    }
+
+    function gitCheckout(args) {
+        const err = ensureInit(); if (err) return err;
+        if (args.length === 0) return { err: 'Usage: git checkout <branch>  |  git checkout -b <new-branch>' };
+        let createNew = false;
+        let name = args[0];
+        if (args[0] === '-b') { createNew = true; name = args[1]; }
+        if (!name) return { err: 'Branch name required.' };
+        if (createNew) {
+            const r = gitBranch([name]);
+            if (r.err) return r;
+        }
+        if (repo.branches[name] === undefined) return { err: `Branch '${name}' does not exist.` };
+        repo.head = { type: 'branch', ref: name };
+        const tree = headCommit().tree;
+        repo.workingDir = { ...tree };
+        repo.staging = { ...tree };
+        refreshFilesUI();
+        return { ok: `Switched to branch '${name}'` };
+    }
+
+    function gitMerge(args) {
+        const err = ensureInit(); if (err) return err;
+        if (args.length === 0) return { err: 'Usage: git merge <branch>' };
+        const name = args[0];
+        if (repo.branches[name] === undefined) return { err: `Branch '${name}' does not exist.` };
+        const current = headBranchName();
+        if (!current) return { err: 'Cannot merge while in detached HEAD.' };
+        if (current === name) return { err: `Already on '${name}'.` };
+
+        const headC = headCommit();
+        const otherC = commitById(repo.branches[name]);
+
+        // Fast-forward check: is head an ancestor of other?
+        const ancestors = (c) => {
+            const set = new Set();
+            const stack = [c];
+            while (stack.length) {
+                const cur = stack.pop();
+                if (!cur || set.has(cur.id)) continue;
+                set.add(cur.id);
+                for (const p of cur.parents) stack.push(commitById(p));
+            }
+            return set;
+        };
+        const otherAnc = ancestors(otherC);
+        const headAnc = ancestors(headC);
+
+        if (otherAnc.has(headC.id)) {
+            // Fast-forward
+            repo.branches[current] = otherC.id;
+            repo.workingDir = { ...otherC.tree };
+            repo.staging = { ...otherC.tree };
+            refreshFilesUI();
+            return { ok: `Fast-forwarded ${current} to ${name}` };
+        }
+        if (headAnc.has(otherC.id)) {
+            return { ok: `Already up to date.` };
+        }
+
+        // True merge — naive merge: union of files, conflict if both sides modified the same file differently.
+        // Common ancestor:
+        const commonId = [...otherAnc].find(id => headAnc.has(id));
+        const common = commonId !== undefined ? commitById(commonId) : null;
+        const baseTree = common ? common.tree : {};
+        const headTree = headC.tree;
+        const otherTree = otherC.tree;
+        const merged = { ...baseTree };
+        const allFiles = new Set([...Object.keys(headTree), ...Object.keys(otherTree), ...Object.keys(baseTree)]);
+        const conflicts = [];
+        for (const f of allFiles) {
+            const b = baseTree[f];
+            const h = headTree[f];
+            const o = otherTree[f];
+            if (h === o) merged[f] = h;
+            else if (h === b) merged[f] = o;
+            else if (o === b) merged[f] = h;
+            else { conflicts.push(f); merged[f] = `<<<<<<< ${current}\n${h ?? ''}\n=======\n${o ?? ''}\n>>>>>>> ${name}\n`; }
+        }
+        if (conflicts.length) {
+            repo.workingDir = merged;
+            refreshFilesUI();
+            return { err: `Merge conflicts in: ${conflicts.join(', ')}\nResolve them in the editor, then: git add <file> && git commit -m "merge"` };
+        }
+        // Create merge commit
+        const id = repo.nextId++;
+        repo.commits.push({ id, parents: [headC.id, otherC.id], tree: merged, message: `Merge branch '${name}' into ${current}`, branch: current });
+        repo.branches[current] = id;
+        repo.workingDir = { ...merged };
+        repo.staging = { ...merged };
+        refreshFilesUI();
+        return { ok: `Merge made by the 'recursive' strategy.` };
+    }
+
+    // ============================================================
+    // UI — files, terminal, graph
+    // ============================================================
+    let currentFile = null;
+
+    function refreshFilesUI() {
+        const tabs = document.getElementById('filesTabs');
+        tabs.innerHTML = '';
+        const names = Object.keys(repo.workingDir).sort();
+        for (const f of names) {
+            const b = document.createElement('button');
+            b.textContent = f;
+            if (f === currentFile) b.classList.add('active');
+            b.addEventListener('click', () => { currentFile = f; refreshFilesUI(); });
+            tabs.appendChild(b);
+        }
+        const nb = document.createElement('button');
+        nb.textContent = '+ new file';
+        nb.className = 'new-file';
+        nb.addEventListener('click', () => {
+            const name = prompt('File name (e.g. hello.txt):');
+            if (!name) return;
+            if (!/^[A-Za-z0-9._\-\/]+$/.test(name)) { alert('Invalid filename.'); return; }
+            currentFile = name;
+            if (!(name in repo.workingDir)) repo.workingDir[name] = '';
+            refreshFilesUI();
+        });
+        tabs.appendChild(nb);
+
+        const ed = document.getElementById('fileEditor');
+        if (currentFile && currentFile in repo.workingDir) {
+            ed.value = repo.workingDir[currentFile];
+            ed.disabled = false;
+        } else {
+            ed.value = '';
+            ed.disabled = false;
+            currentFile = null;
+        }
+        renderGraph();
+    }
+
+    function renderGraph() {
+        const g = document.getElementById('graphRow');
+        if (!repo.initialized) { g.textContent = 'Run `git init` to start.'; return; }
+        if (repo.commits.length === 0) { g.textContent = '(no commits yet)'; return; }
+        const lines = [];
+        const branches = Object.keys(repo.branches);
+        for (const b of branches) {
+            const id = repo.branches[b];
+            const ptr = (headBranchName() === b) ? '⮕ ' : '   ';
+            lines.push(`${ptr}${b}  →  ${shortId(id)}`);
+        }
+        lines.push('');
+        lines.push('Commits (newest first):');
+        const sorted = [...repo.commits].sort((a,b)=>b.id-a.id);
+        for (const c of sorted) {
+            const parents = c.parents.map(shortId).join(', ') || '∅';
+            lines.push(`  ${shortId(c.id)}  [${c.branch}]  ←  ${parents}   "${c.message}"`);
+        }
+        g.textContent = lines.join('\n');
+    }
+
+    function termAppend(text, kind = 'out') {
+        const h = document.getElementById('termHistory');
+        const span = document.createElement('span');
+        span.className = kind;
+        span.textContent = text + '\n';
+        h.appendChild(span);
+        h.scrollTop = h.scrollHeight;
+    }
+
+    function handleTermSubmit(line) {
+        const branch = headBranchName() || (repo.head.type === 'unborn' ? repo.head.ref : 'detached');
+        termAppend(`$ ${line}`, 'cmd');
+        const result = runLine(line);
+        if (result.err) termAppend(result.err, 'err');
+        if (result.ok) termAppend(result.ok, 'ok');
+        if (result.out) termAppend(result.out, 'out');
+        renderGraph();
+        autoCheckLesson();
+    }
+
+    // ============================================================
+    // Lessons
+    // ============================================================
+    const LESSONS = [
+        {
+            title: 'Lesson 1 — Your First Commit',
+            instructions: 'Make a brand-new repo, create a file with some content, stage it, and commit. Commits are like save points for your code.',
+            goal: 'Goal: one commit on branch `main` containing a file named `hello.txt`.',
+            hints: 'Try: <code>git init</code> · create <code>hello.txt</code> · <code>git add hello.txt</code> · <code>git commit -m "first commit"</code>',
+            check: (r) => {
+                if (!r.initialized) return 'Not initialized — run `git init`.';
+                if (r.commits.length < 1) return 'No commits yet — `git add` and `git commit -m "..."`.';
+                const c = r.commits[0];
+                if (c.branch !== 'main' || !('hello.txt' in c.tree)) return 'Looking for a commit on `main` containing `hello.txt`.';
+                return null;
+            }
+        },
+        {
+            title: 'Lesson 2 — More Commits, See the History',
+            instructions: 'Edit `hello.txt` (or create another file), stage and commit again, then run `git log` to see your history.',
+            goal: 'Goal: at least 2 commits on `main`, and you have run `git log`.',
+            hints: 'Edit a file in the editor → <code>Save File</code> → <code>git add</code> → <code>git commit -m "..."</code> → <code>git log</code>',
+            check: (r, hist) => {
+                if (r.commits.filter(c => c.branch === 'main').length < 2) return 'Need 2 commits on `main`.';
+                if (!hist.some(l => l.startsWith('git log'))) return 'Run `git log` to view the history.';
+                return null;
+            }
+        },
+        {
+            title: 'Lesson 3 — Branching Out',
+            instructions: 'Create a new branch called `feature`, switch to it, and make a commit there. Branches let you try ideas without disturbing `main`.',
+            goal: 'Goal: a branch `feature` that has at least one commit not on `main`.',
+            hints: '<code>git checkout -b feature</code> · edit a file · <code>git add .</code> · <code>git commit -m "..."</code>',
+            check: (r) => {
+                if (!('feature' in r.branches)) return 'No branch named `feature`. Try `git checkout -b feature`.';
+                const featureTip = r.branches.feature;
+                const mainTip = r.branches.main;
+                if (featureTip === mainTip) return '`feature` is at the same commit as `main`. Make a commit on `feature`.';
+                return null;
+            }
+        },
+        {
+            title: 'Lesson 4 — Merging',
+            instructions: 'Switch back to `main` and merge `feature` into it. After merge, `main` should contain all the work from `feature`.',
+            goal: 'Goal: HEAD on `main`, and `main` includes the latest commit of `feature` (or a merge commit).',
+            hints: '<code>git checkout main</code> · <code>git merge feature</code>',
+            check: (r) => {
+                if (headBranchNameStrict(r) !== 'main') return 'Switch back to `main` first.';
+                const mainTip = commitByIdStrict(r, r.branches.main);
+                const featureTip = commitByIdStrict(r, r.branches.feature);
+                if (!featureTip) return 'Need a `feature` branch first.';
+                // mainTip must reach featureTip
+                const seen = new Set();
+                const stack = [mainTip];
+                while (stack.length) {
+                    const c = stack.pop();
+                    if (!c || seen.has(c.id)) continue;
+                    seen.add(c.id);
+                    for (const p of c.parents) stack.push(commitByIdStrict(r, p));
+                }
+                if (!seen.has(featureTip.id)) return '`main` has not absorbed the `feature` commits yet — run `git merge feature`.';
+                return null;
+            }
+        },
+        {
+            title: 'Lesson 5 — Resolve a Conflict (challenge)',
+            instructions: 'Create a branch `experiment` from main, change a line in an existing file there, then go back to main and change the same line differently. Merge `experiment` into `main`. When the conflict appears, fix the file (remove the <<<<<<< / ======= / >>>>>>> markers), save, add, and commit.',
+            goal: 'Goal: a merge commit on `main` whose parents include the tips of both `main` and `experiment`.',
+            hints: 'You will see conflict markers in your file after `git merge`. Edit them out, then `git add <file>` and `git commit -m "resolve"`.',
+            check: (r) => {
+                if (!('experiment' in r.branches)) return 'No `experiment` branch yet.';
+                if (headBranchNameStrict(r) !== 'main') return 'Switch back to `main`.';
+                const mergeCommit = r.commits.find(c => c.parents.length === 2 && c.branch === 'main');
+                if (!mergeCommit) return 'No merge commit on `main` yet.';
+                // ensure file contents no longer have conflict markers
+                for (const [, content] of Object.entries(mergeCommit.tree)) {
+                    if (typeof content === 'string' && (content.includes('<<<<<<<') || content.includes('>>>>>>>'))) {
+                        return 'Conflict markers still in the merged file — edit them out and commit again.';
+                    }
+                }
+                return null;
+            }
+        }
+    ];
+
+    function headBranchNameStrict(r) { return r.head.type === 'branch' ? r.head.ref : null; }
+    function commitByIdStrict(r, id) { return r.commits.find(c => c.id === id); }
+
+    let currentLesson = 0;
+    const completedLessons = new Set(JSON.parse(localStorage.getItem('gitTutorial:completed') || '[]'));
+    const termHistoryLog = [];
+
+    function renderLessons() {
+        const ul = document.getElementById('lessonList');
+        ul.innerHTML = '';
+        LESSONS.forEach((l, i) => {
+            const li = document.createElement('li');
+            li.textContent = l.title;
+            if (i === currentLesson) li.classList.add('active');
+            if (completedLessons.has(i)) {
+                const c = document.createElement('span');
+                c.className = 'check';
+                c.textContent = '✓';
+                li.appendChild(c);
+            }
+            li.addEventListener('click', () => { currentLesson = i; renderCurrentLesson(); });
+            ul.appendChild(li);
+        });
+    }
+
+    function renderCurrentLesson() {
+        const l = LESSONS[currentLesson];
+        document.getElementById('lessonTitle').textContent = l.title;
+        document.getElementById('lessonInstructions').textContent = l.instructions;
+        document.getElementById('lessonGoal').textContent = l.goal;
+        document.getElementById('lessonHints').innerHTML = 'Hints: ' + l.hints;
+        document.getElementById('feedback').className = 'feedback';
+        document.getElementById('feedback').textContent = '';
+        renderLessons();
+    }
+
+    function autoCheckLesson() {
+        const l = LESSONS[currentLesson];
+        const reason = l.check(repo, termHistoryLog);
+        if (reason === null) {
+            completedLessons.add(currentLesson);
+            localStorage.setItem('gitTutorial:completed', JSON.stringify([...completedLessons]));
+            const fb = document.getElementById('feedback');
+            fb.className = 'feedback ok';
+            fb.textContent = '🎉 Lesson complete! Pick the next one on the left.';
+            renderLessons();
+        }
+    }
+
+    function checkLessonNow() {
+        const l = LESSONS[currentLesson];
+        const reason = l.check(repo, termHistoryLog);
+        const fb = document.getElementById('feedback');
+        if (reason === null) {
+            completedLessons.add(currentLesson);
+            localStorage.setItem('gitTutorial:completed', JSON.stringify([...completedLessons]));
+            fb.className = 'feedback ok';
+            fb.textContent = '🎉 Lesson complete! Pick the next one on the left.';
+            renderLessons();
+        } else {
+            fb.className = 'feedback err';
+            fb.textContent = 'Not quite: ' + reason;
+        }
+    }
+
+    // ============================================================
+    // Wiring
+    // ============================================================
+    document.getElementById('termInput').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const line = e.target.value;
+        if (!line.trim()) return;
+        termHistoryLog.push(line);
+        e.target.value = '';
+        handleTermSubmit(line);
+    });
+
+    document.getElementById('saveFileBtn').addEventListener('click', () => {
+        if (!currentFile) { alert('Pick or create a file first.'); return; }
+        repo.workingDir[currentFile] = document.getElementById('fileEditor').value;
+        termAppend(`(saved ${currentFile})`, 'dim');
+        renderGraph();
+        autoCheckLesson();
+    });
+
+    document.getElementById('deleteFileBtn').addEventListener('click', () => {
+        if (!currentFile) return;
+        if (!confirm(`Delete ${currentFile} from the working directory?`)) return;
+        delete repo.workingDir[currentFile];
+        currentFile = null;
+        refreshFilesUI();
+    });
+
+    document.getElementById('checkBtn').addEventListener('click', checkLessonNow);
+
+    document.getElementById('resetRepoBtn').addEventListener('click', () => {
+        if (!confirm('Reset the simulated repo? Your lesson progress will be kept.')) return;
+        resetRepo();
+        currentFile = null;
+        document.getElementById('termHistory').innerHTML = '';
+        termHistoryLog.length = 0;
+        refreshFilesUI();
+        termAppend('Repository reset. Try: git init', 'dim');
+    });
+
+    // Boot
+    refreshFilesUI();
+    renderCurrentLesson();
+    termAppend("Welcome to the git tutorial! Type 'help' for commands, or follow the lesson on the left.", 'dim');
+    document.getElementById('termInput').focus();
+    </script>
+</body>
+</html>
