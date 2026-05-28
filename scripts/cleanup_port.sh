@@ -1,9 +1,8 @@
 #!/bin/bash
 # Port cleanup utility for Python Game Builder
 # Usage: ./cleanup_port.sh [port_number]
-# Default port: 8080 (standard for many Replit/container setups) or from $PORT
-
-PORT=${1:-${PORT:-8080}}
+# Default port: 5000 (Flask default)
+PORT=${1:-${PORT:-5000}}
 
 # Ensure we're in the project root
 cd "$(dirname "$0")/.."

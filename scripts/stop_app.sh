@@ -2,7 +2,7 @@
 # Stop the Python Game Builder app
 
 # Default port
-PORT=${PORT:-8080}
+PORT=${PORT:-5000}
 
 # Ensure we're in the project root
 cd "$(dirname "$0")/.."

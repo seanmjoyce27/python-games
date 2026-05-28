@@ -47,23 +47,26 @@ AVATAR_OPTIONS = [
 database_url = os.environ.get('DATABASE_URL')
 
 if not database_url:
-    # Default to local Postgres for development
-    database_url = 'postgresql://localhost/python_games'
-    print("⚠️  DATABASE_URL not set. Defaulting to local: postgresql://localhost/python_games")
+    # Default to local SQLite for development
+    database_url = 'sqlite:///python_games.db'
+    print("⚠️  DATABASE_URL not set. Defaulting to local: sqlite:///python_games.db")
 
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-# Disable GSS/Kerberos authentication to prevent segfaults when forking on macOS.
-# The crash occurs in libgssapi_krb5 when psycopg2/libpq checks for Kerberos creds
-# in a forked child process (Flask reloader). Adding gssencmode=disable avoids this.
-if '?' in database_url:
-    if 'gssencmode' not in database_url:
-        database_url += '&gssencmode=disable'
+# SQLite doesn't need GSS/Kerberos disable
+if not database_url.startswith('sqlite:'):
+    # Disable GSS/Kerberos authentication to prevent segfaults when forking on macOS.
+    # The crash occurs in libgssapi_krb5 when psycopg2/libpq checks for Kerberos creds
+    # in a forked child process (Flask reloader). Adding gssencmode=disable avoids this.
+    if '?' in database_url:
+        if 'gssencmode' not in database_url:
+            database_url += '&gssencmode=disable'
+    else:
+        database_url += '?gssencmode=disable'
+    print(f"🐘 Connecting to PostgreSQL database...")
 else:
-    database_url += '?gssencmode=disable'
-
-print(f"🐘 Connecting to PostgreSQL database...")
+    print(f"📦 Connecting to SQLite database...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

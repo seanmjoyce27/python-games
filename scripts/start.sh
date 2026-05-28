@@ -11,10 +11,10 @@ mkdir -p instance
 
 # Check database status
 if [ -z "$DATABASE_URL" ]; then
-    echo "⚠️  DATABASE_URL not set. App will try to connect to: postgresql://localhost/python_games"
-    echo "🐘 Ensure you have a local PostgreSQL server running."
+    echo "⚠️  DATABASE_URL not set. Defaulting to local: sqlite:///python_games.db"
+    echo "📦 For PostgreSQL, set DATABASE_URL=postgresql://user:pass@localhost/dbname"
 else
-    echo "🐘 Using configured PostgreSQL database"
+    echo "🐘 Using configured database: $DATABASE_URL"
 fi
 
 # Run database migrations (schema updates)
