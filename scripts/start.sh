@@ -20,10 +20,26 @@ fi
 # Run database migrations (schema updates)
 echo "🔄 Checking for database migrations..."
 if [ -d "venv" ]; then
-    ./venv/bin/python3 -m flask db upgrade
+    PY=./venv/bin/python3
 else
-    python3 -m flask db upgrade
+    PY=python3
 fi
+
+# If the DB already has tables from a pre-Alembic install but no alembic_version
+# row, stamp it to head so the initial migration doesn't try to recreate tables.
+$PY - <<'PY'
+from app import app, db
+from sqlalchemy import inspect
+with app.app_context():
+    insp = inspect(db.engine)
+    tables = set(insp.get_table_names())
+    if 'game' in tables and 'alembic_version' not in tables:
+        print("📌 Existing pre-Alembic database detected — stamping current head...")
+        from flask_migrate import stamp
+        stamp(revision='head')
+PY
+
+$PY -m flask db upgrade
 
 # Start the application
 if [ "$1" = "--production" ] || [ "$FLASK_ENV" = "production" ]; then

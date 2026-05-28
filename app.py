@@ -103,6 +103,7 @@ class Game(db.Model):
     description = db.Column(db.Text)
     template_code = db.Column(db.Text, nullable=False)
     template_version = db.Column(db.Integer, default=1)  # Tracks updates to starter code
+    sort_order = db.Column(db.Integer, default=0, nullable=False)  # Journey position
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class TemplateVersion(db.Model):
@@ -156,7 +157,7 @@ class UserMissionProgress(db.Model):
 def index():
     """Game selection page"""
     try:
-        games = Game.query.all()
+        games = Game.query.order_by(Game.sort_order, Game.id).all()
         users = User.query.all()
         return render_template('index.html', games=games, users=users)
     except OperationalError:
@@ -186,7 +187,7 @@ def admin_panel():
         return render_template('admin.html', authenticated=False)
 
     users = User.query.all()
-    games = Game.query.all()
+    games = Game.query.order_by(Game.sort_order, Game.id).all()
     total_saves = CodeVersion.query.count()
     total_missions = Mission.query.count()
 
@@ -337,7 +338,7 @@ def manage_users():
 @app.route('/api/games/progress/<int:user_id>', methods=['GET'])
 def get_games_progress(user_id):
     """Get all games with completion status for a user"""
-    games = Game.query.all()
+    games = Game.query.order_by(Game.sort_order, Game.id).all()
     result = []
     
     for game in games:
@@ -368,7 +369,7 @@ def get_games_progress(user_id):
 @app.route('/api/games', methods=['GET'])
 def get_games():
     """Get all available games"""
-    games = Game.query.all()
+    games = Game.query.order_by(Game.sort_order, Game.id).all()
     return jsonify([{
         'id': g.id,
         'name': g.name,
@@ -904,8 +905,21 @@ def init_db():
                 print(f"❌ Failed to add 'base_template_version' column: {e}")
                 db.session.rollback()
 
+        # 3. Add sort_order to game table
+        try:
+            db.session.execute(text("SELECT sort_order FROM game LIMIT 1")).fetchone()
+        except Exception:
+            print("🔧 Adding missing 'sort_order' column to 'game' table...")
+            try:
+                db.session.execute(text("ALTER TABLE game ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"))
+                db.session.commit()
+                print("✅ Column 'sort_order' added successfully.")
+            except Exception as e:
+                print(f"❌ Failed to add 'sort_order' column: {e}")
+                db.session.rollback()
+
         # Individual game seeding for robustness
-        def get_or_create_game(name, display_name, description, template_code):
+        def get_or_create_game(name, display_name, description, template_code, sort_order):
             game = Game.query.filter_by(name=name).first()
             if not game:
                 game = Game(
@@ -913,31 +927,44 @@ def init_db():
                     display_name=display_name,
                     description=description,
                     template_code=template_code,
-                    template_version=1
+                    template_version=1,
+                    sort_order=sort_order
                 )
                 db.session.add(game)
                 db.session.commit()
-                
+
                 # Save initial template version
                 tv = TemplateVersion(game_id=game.id, version=1, code=template_code)
                 db.session.add(tv)
                 db.session.commit()
-                
+
                 print(f"✅ Seeded game: {display_name}")
             else:
-                # Update template if it has changed in app.py
-                if game.template_code != template_code:
-                    game.template_code = template_code
+                # Always refresh metadata so renames/reorders in source propagate
+                metadata_changed = (
+                    game.display_name != display_name
+                    or game.description != description
+                    or game.sort_order != sort_order
+                )
+                if metadata_changed:
                     game.display_name = display_name
                     game.description = description
+                    game.sort_order = sort_order
+
+                # Bump template version only when the starter code itself changed
+                template_changed = game.template_code != template_code
+                if template_changed:
+                    game.template_code = template_code
                     game.template_version += 1
-                    
-                    # Save updated template version
                     tv = TemplateVersion(game_id=game.id, version=game.template_version, code=template_code)
                     db.session.add(tv)
-                    
+
+                if metadata_changed or template_changed:
                     db.session.commit()
-                    print(f"🔄 Updated template to v{game.template_version} for: {display_name}")
+                    if template_changed:
+                        print(f"🔄 Updated template to v{game.template_version} for: {display_name}")
+                    else:
+                        print(f"🔄 Refreshed metadata for: {display_name}")
             return game
 
         # Helper to add mission if missing
@@ -1040,7 +1067,8 @@ def draw():
             name='basics',
             display_name='Mission 1: Python Basics',
             description='Learn the top 10 Python commands in the Robot Lab!',
-            template_code=basics_template
+            template_code=basics_template,
+            sort_order=1
         )
 
         # Basics Missions
@@ -1375,7 +1403,8 @@ def draw():
             name='snake',
             display_name='Mission 2: Snake Game',
             description='Classic snake game - eat food and grow!',
-            template_code=snake_template
+            template_code=snake_template,
+            sort_order=2
         )
 
         # 3. Pong Game (2-player)
@@ -1588,7 +1617,8 @@ def draw():
             name='pong',
             display_name='Mission 3: Pong (2-Player)',
             description='Classic 2-player Pong! First to 5 points wins.',
-            template_code=pong_template
+            template_code=pong_template,
+            sort_order=3
         )
 
         # 4. Space Invaders
@@ -1931,7 +1961,8 @@ def draw():
             name='space_invaders',
             display_name='Mission 4: Space Invaders',
             description='Shoot the aliens before they reach Earth!',
-            template_code=space_invaders_template
+            template_code=space_invaders_template,
+            sort_order=4
         )
 
         # 5. Maze Game
@@ -2105,7 +2136,8 @@ def draw():
             name='maze',
             display_name='Mission 5: Maze Adventure',
             description='Navigate the maze and find the exit!',
-            template_code=maze_template
+            template_code=maze_template,
+            sort_order=5
         )
 
         # 6. Tetris
@@ -2426,7 +2458,8 @@ def draw():
             name='tetris',
             display_name='Mission 6: Tetris',
             description='Stack blocks and clear lines! Classic puzzle game.',
-            template_code=tetris_template
+            template_code=tetris_template,
+            sort_order=6
         )
 
         # Snake Mission 1: Change speed
@@ -3522,7 +3555,8 @@ def draw():
             name='minecraft',
             display_name='Mission 7: Minecraft 2D',
             description='Mine, build, craft, survive slimes, finish quests, and save your world!',
-            template_code=minecraft_template
+            template_code=minecraft_template,
+            sort_order=7
         )
 
         # --- Minecraft Missions ---
