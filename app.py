@@ -4,6 +4,7 @@ from flask_migrate import Migrate, upgrade
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 import difflib
 import os
@@ -865,12 +866,43 @@ def validate_mission(mission_id):
 def init_db():
     """Initialize database with sample games"""
     with app.app_context():
+        # Ensure instance directory exists
+        if not os.path.exists(app.instance_path):
+            os.makedirs(app.instance_path, exist_ok=True)
+            
         # Check if we should reinitialize the database from scratch
         if os.environ.get('REINIT_DB') == 'true':
             print("⚠️ REINIT_DB is true - dropping all tables and recreating...")
             db.drop_all()
             
         db.create_all()
+
+        # Handle legacy database migrations (missing columns)
+        # 1. Add template_version to game table
+        try:
+            db.session.execute(text("SELECT template_version FROM game LIMIT 1")).fetchone()
+        except Exception:
+            print("🔧 Adding missing 'template_version' column to 'game' table...")
+            try:
+                db.session.execute(text("ALTER TABLE game ADD COLUMN template_version INTEGER DEFAULT 1"))
+                db.session.commit()
+                print("✅ Column 'template_version' added successfully.")
+            except Exception as e:
+                print(f"❌ Failed to add 'template_version' column: {e}")
+                db.session.rollback()
+
+        # 2. Add base_template_version to code_version table
+        try:
+            db.session.execute(text("SELECT base_template_version FROM code_version LIMIT 1")).fetchone()
+        except Exception:
+            print("🔧 Adding missing 'base_template_version' column to 'code_version' table...")
+            try:
+                db.session.execute(text("ALTER TABLE code_version ADD COLUMN base_template_version INTEGER DEFAULT 1"))
+                db.session.commit()
+                print("✅ Column 'base_template_version' added successfully.")
+            except Exception as e:
+                print(f"❌ Failed to add 'base_template_version' column: {e}")
+                db.session.rollback()
 
         # Individual game seeding for robustness
         def get_or_create_game(name, display_name, description, template_code):
@@ -3596,6 +3628,11 @@ def signal_handler(sig, frame):
 
 
 if __name__ == '__main__':
+    # Check for command-line arguments
+    if '--wipe-db' in sys.argv:
+        os.environ['REINIT_DB'] = 'true'
+        print("🧹 Database wipe requested via --wipe-db flag")
+
     # Suppress resource tracker warnings from Werkzeug reloader
     # These are harmless and occur because Flask's dev server uses multiprocessing
     warnings.filterwarnings('ignore', category=UserWarning, module='multiprocessing.resource_tracker')
